@@ -5,7 +5,10 @@ import os
 import threading
 from flask import Flask
 
+# Render Environment Variables se securely uthayega
 TOKEN = os.getenv('BOT_TOKEN')
+ADMIN_ID = int(os.getenv('ADMIN_ID', '6665529050'))
+
 bot = telebot.TeleBot(TOKEN)
 
 # Database Setup
@@ -30,23 +33,32 @@ init_db()
 
 user_states = {}
 
-def get_main_menu():
+def get_main_menu(user_id):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     markup.add(
         types.KeyboardButton("🚀 Start Bot"),
         types.KeyboardButton("💎 Buy Likes & Pricing"),
-        types.KeyboardButton("ℹ️ Help & Trust Guide"),
-        types.KeyboardButton("👑 Admin Dashboard")
+        types.KeyboardButton("ℹ️ Help & Trust Guide")
     )
+    # Agar user admin hai toh hi Admin Dashboard ka menu dikhega
+    if user_id == ADMIN_ID:
+        markup.add(types.KeyboardButton("👑 Admin Dashboard"))
     return markup
+
+# Safe delete helper function to keep chat clean
+def safe_delete(chat_id, message_id):
+    try:
+        bot.delete_message(chat_id, message_id)
+    except Exception:
+        pass
 
 # /start & Main Menu Handler
 @bot.message_handler(commands=['start'])
 @bot.message_handler(func=lambda message: message.text in ["🚀 Start Bot", "💎 Buy Likes & Pricing"])
 def send_welcome(message):
-    markup = types.InlineKeyboardMarkup(row_width=2)
+    safe_delete(message.chat.id, message.message_id)
     
-    # Pricing Buttons (Professional layout)
+    markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
         types.InlineKeyboardButton("🟢 ₹5 — 40 Likes", callback_data='plan_5'),
         types.InlineKeyboardButton("🟡 ₹10 — 90 Likes", callback_data='plan_10'),
@@ -69,12 +81,13 @@ def send_welcome(message):
         "🛡️ **Safety Guarantee:** Garena rules ke mutabiq daily limit mein likes diye jaate hain taaki ID 100% safe rahe."
     )
     
-    bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=get_main_menu())
+    bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=get_main_menu(message.from_user.id))
     bot.send_message(message.chat.id, "👇 *Apna pasandida plan select karne ke liye button dabayein:*", parse_mode='Markdown', reply_markup=markup)
 
 # Help & Trust Guide
 @bot.message_handler(func=lambda message: message.text == "ℹ️ Help & Trust Guide")
 def help_info(message):
+    safe_delete(message.chat.id, message.message_id)
     text = (
         "🛡️ **TRUST & SAFETY GUIDE**\n"
         "━━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -82,11 +95,16 @@ def help_info(message):
         "• **Zero Ban Risk:** Aapki ID par koi khatra nahi hota.\n"
         "• **Fast Support:** Payment ke baad turant UTR aur UID submit karein."
     )
-    bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=get_main_menu())
+    bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=get_main_menu(message.from_user.id))
 
-# Admin Dashboard
+# Admin Dashboard (Strictly for ADMIN_ID)
 @bot.message_handler(func=lambda message: message.text == "👑 Admin Dashboard")
 def admin_dashboard(message):
+    safe_delete(message.chat.id, message.message_id)
+    if message.from_user.id != ADMIN_ID:
+        bot.send_message(message.chat.id, "❌ Aap yeh command use nahi kar sakte.", reply_markup=get_main_menu(message.from_user.id))
+        return
+
     conn = sqlite3.connect('bot_database.db')
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM orders")
@@ -99,9 +117,9 @@ def admin_dashboard(message):
         f"📊 Total Orders: `{count}`\n\n"
         "💻 *Command:* Type `/list` to view customer records."
     )
-    bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=get_main_menu())
+    bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=get_main_menu(message.from_user.id))
 
-# Plan Selected -> Show Professional Card with Payment Options (QR / UPI)
+# Plan Selected -> Show Professional Card with QR and UPI options
 @bot.callback_query_handler(func=lambda call: call.data.startswith('plan_'))
 def handle_plan_selection(call):
     prices = {
@@ -115,14 +133,13 @@ def handle_plan_selection(call):
     price, likes = prices.get(call.data, ("₹5", "40 Likes"))
     user_states[call.from_user.id] = {'state': 'waiting_for_utr', 'plan': f"{price} - {likes}"}
     bot.answer_callback_query(call.id)
+    safe_delete(call.message.chat.id, call.message.message_id)
 
-    # Card-style professional layout
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
         types.InlineKeyboardButton("📷 View QR Code", callback_data='show_qr'),
         types.InlineKeyboardButton("📋 Copy UPI ID", callback_data='show_upi')
     )
-    markup.add(types.InlineKeyboardButton("✅ Payment Ho Gaya (Send UTR)", callback_data='send_utr_prompt'))
 
     card_text = (
         f"📦 **ORDER SUMMARY CARD**\n"
@@ -130,44 +147,55 @@ def handle_plan_selection(call):
         f"🔹 **Plan:** `{price} — {likes}`\n"
         f"👤 **Name:** Santosh Rawat\n\n"
         f"⚠️ **Trust Notice:** Garena rules ke tahat daily limit me likes milenge taaki ID 100% safe rahe.\n\n"
-        f"👇 **Payment karne ke liye niche option chunein:**"
+        f"👇 **Payment ke liye upar diye gaye kisi ek option par click karein:**"
     )
     
     bot.send_message(call.message.chat.id, card_text, parse_mode='Markdown', reply_markup=markup)
 
-# Handle QR Code Button Click (Sends direct image from your link)
+# Handle QR Code Button Click -> QR Image with "Payment Ho Gaya" at the bottom
 @bot.callback_query_handler(func=lambda call: call.data == 'show_qr')
 def send_qr_image(call):
     bot.answer_callback_query(call.id)
+    safe_delete(call.message.chat.id, call.message.message_id)
+    
     qr_url = "https://i.postimg.cc/kGQwSRy4/QR-Code.png"
     
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton("✅ Payment Ho Gaya (Send UTR)", callback_data='send_utr_prompt'))
+
     caption = (
         "📷 **SCAN & PAY VIA QR**\n"
         "━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "• Is QR code ko apne kisi bhi UPI app (GPay/PhonePe/Paytm) se scan karke exact amount pay karein.\n"
-        "• Payment ke baad niche button daba kar UTR bhejein."
+        "• Is QR code ko scan karke exact amount pay karein.\n"
+        "• Payment karne ke baad **niche diye gaye button** par click karein."
     )
-    bot.send_photo(call.message.chat.id, qr_url, caption=caption, parse_mode='Markdown')
+    bot.send_photo(call.message.chat.id, qr_url, caption=caption, parse_mode='Markdown', reply_markup=markup)
 
-# Handle UPI ID Button Click (Clean card view)
+# Handle UPI ID Button Click -> UPI details with "Payment Ho Gaya" at the bottom
 @bot.callback_query_handler(func=lambda call: call.data == 'show_upi')
 def send_upi_details(call):
     bot.answer_callback_query(call.id)
+    safe_delete(call.message.chat.id, call.message.message_id)
     
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton("✅ Payment Ho Gaya (Send UTR)", callback_data='send_utr_prompt'))
+
     upi_text = (
         "💳 **DIRECT UPI PAYMENT**\n"
         "━━━━━━━━━━━━━━━━━━━━━━━\n"
         "Aap niche di gayi UPI ID par seedha payment kar sakte hain:\n\n"
         "🆔 `santoshkumarram085-1@oksbi`\n"
         "👤 **Name:** Santosh Rawat\n\n"
-        "*(Tap to copy above UPI ID)*"
+        "*(Payment karne ke baad niche wale button par click karein)*"
     )
-    bot.send_message(call.message.chat.id, upi_text, parse_mode='Markdown')
+    bot.send_message(call.message.chat.id, upi_text, parse_mode='Markdown', reply_markup=markup)
 
 # Prompt user for UTR when they click "Payment Ho Gaya"
 @bot.callback_query_handler(func=lambda call: call.data == 'send_utr_prompt')
 def prompt_utr(call):
     bot.answer_callback_query(call.id)
+    safe_delete(call.message.chat.id, call.message.message_id)
+    
     bot.send_message(
         call.message.chat.id,
         "📝 **ENTER TRANSACTION DETAILS**\n"
@@ -186,9 +214,11 @@ def handle_messages(message):
         utr = message.text.strip()
         plan_selected = state.get('plan')
         user_states[user_id] = {'state': 'waiting_for_uid', 'utr': utr, 'plan': plan_selected}
+        
+        safe_delete(message.chat.id, message.message_id)
 
-        bot.reply_to(
-            message,
+        bot.send_message(
+            message.chat.id,
             "✅ **UTR RECEIVED SUCCESSFULLY!**\n"
             "━━━━━━━━━━━━━━━━━━━━━━━\n"
             f"📦 Plan: `{plan_selected}`\n"
@@ -211,9 +241,10 @@ def handle_messages(message):
         conn.close()
 
         user_states.pop(user_id, None)
+        safe_delete(message.chat.id, message.message_id)
 
-        bot.reply_to(
-            message,
+        bot.send_message(
+            message.chat.id,
             "🎉 **ORDER PLACED SUCCESSFULLY!**\n"
             "━━━━━━━━━━━━━━━━━━━━━━━\n"
             f"📦 Plan: `{plan_selected}`\n"
@@ -221,14 +252,18 @@ def handle_messages(message):
             f"🔢 UTR: `{utr}`\n\n"
             "Admin dwara payment verify hote hi aapka daily likes process shuru kar diya jayega! 🚀",
             parse_mode='Markdown',
-            reply_markup=get_main_menu()
+            reply_markup=get_main_menu(user_id)
         )
     else:
-        bot.reply_to(message, "Kripya menu ka use karein ya /start dabayein.", reply_markup=get_main_menu())
+        bot.reply_to(message, "Kripya menu ka use karein ya /start dabayein.", reply_markup=get_main_menu(user_id))
 
-# Admin Orders List
+# Admin Orders List Command
 @bot.message_handler(commands=['list', 'export'])
 def list_orders(message):
+    if message.from_user.id != ADMIN_ID:
+        bot.reply_to(message, "❌ Aap authorized nahi hain.")
+        return
+
     conn = sqlite3.connect('bot_database.db')
     cursor = conn.cursor()
     cursor.execute("SELECT id, user_id, username, plan_name, utr_number, game_uid, status FROM orders")
@@ -236,7 +271,7 @@ def list_orders(message):
     conn.close()
 
     if not rows:
-        bot.reply_to(message, "📂 Abhi tak koi order database mein nahi hai.", reply_markup=get_main_menu())
+        bot.reply_to(message, "📂 Abhi tak koi order database mein nahi hai.", reply_markup=get_main_menu(message.from_user.id))
         return
 
     response = "📋 **CUSTOMER ORDERS DATABASE:**\n━━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -247,7 +282,7 @@ def list_orders(message):
         for x in range(0, len(response), 4000):
             bot.send_message(message.chat.id, response[x:x+4000], parse_mode='Markdown')
     else:
-        bot.send_message(message.chat.id, response, parse_mode='Markdown', reply_markup=get_main_menu())
+        bot.send_message(message.chat.id, response, parse_mode='Markdown', reply_markup=get_main_menu(message.from_user.id))
 
 # Flask Web Service Server for Render
 app = Flask(__name__)
