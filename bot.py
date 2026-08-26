@@ -21,6 +21,7 @@ def init_db():
             user_id INTEGER,
             username TEXT,
             plan_name TEXT,
+            likes_count INTEGER,
             utr_number TEXT,
             game_uid TEXT,
             status TEXT
@@ -40,7 +41,6 @@ def get_main_menu(user_id):
         types.KeyboardButton("💎 Buy Likes & Pricing"),
         types.KeyboardButton("ℹ️ Help & Trust Guide")
     )
-    # Agar user admin hai toh hi Admin Dashboard ka menu dikhega
     if user_id == ADMIN_ID:
         markup.add(types.KeyboardButton("👑 Admin Dashboard"))
     return markup
@@ -60,16 +60,16 @@ def send_welcome(message):
     
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
-        types.InlineKeyboardButton("🟢 ₹5 — 40 Likes", callback_data='plan_5'),
-        types.InlineKeyboardButton("🟡 ₹10 — 90 Likes", callback_data='plan_10'),
-        types.InlineKeyboardButton("🟡 ₹15 — 145 Likes", callback_data='plan_15'),
-        types.InlineKeyboardButton("🔵 ₹20 — 205 Likes", callback_data='plan_20'),
-        types.InlineKeyboardButton("🔵 ₹25 — 270 Likes", callback_data='plan_25'),
-        types.InlineKeyboardButton("🟣 ₹30 — 340 Likes", callback_data='plan_30'),
-        types.InlineKeyboardButton("🟣 ₹35 — 415 Likes", callback_data='plan_35'),
-        types.InlineKeyboardButton("🔥 ₹40 — 500 Likes", callback_data='plan_40'),
-        types.InlineKeyboardButton("🔥 ₹45 — 585 Likes", callback_data='plan_45'),
-        types.InlineKeyboardButton("🚀 ₹50 — 700 Likes (Best)", callback_data='plan_50')
+        types.InlineKeyboardButton("🟢 ₹5 — 40 Likes", callback_data='plan_5_40'),
+        types.InlineKeyboardButton("🟡 ₹10 — 90 Likes", callback_data='plan_10_90'),
+        types.InlineKeyboardButton("🟡 ₹15 — 145 Likes", callback_data='plan_15_145'),
+        types.InlineKeyboardButton("🔵 ₹20 — 205 Likes", callback_data='plan_20_205'),
+        types.InlineKeyboardButton("🔵 ₹25 — 270 Likes", callback_data='plan_25_270'),
+        types.InlineKeyboardButton("🟣 ₹30 — 340 Likes", callback_data='plan_30_340'),
+        types.InlineKeyboardButton("🟣 ₹35 — 415 Likes", callback_data='plan_35_415'),
+        types.InlineKeyboardButton("🔥 ₹40 — 500 Likes", callback_data='plan_40_500'),
+        types.InlineKeyboardButton("🔥 ₹45 — 585 Likes", callback_data='plan_45_585'),
+        types.InlineKeyboardButton("🚀 ₹50 — 700 Likes (Best)", callback_data='plan_50_700')
     )
 
     text = (
@@ -77,8 +77,7 @@ def send_welcome(message):
         "━━━━━━━━━━━━━━━━━━━━━━━\n"
         "⚡ *Get fast, secure and genuine profile likes everyday.*\n\n"
         "💎 **CHOOSE YOUR PLAN BELOW:**\n"
-        "*(Bade plans par zyada likes aur bada fayda milta hai!)*\n\n"
-        "🛡️ **Safety Guarantee:** Garena rules ke mutabiq daily limit mein likes diye jaate hain taaki ID 100% safe rahe."
+        "*(Bade plans par zyada likes aur bada fayda milta hai!)*"
     )
     
     bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=get_main_menu(message.from_user.id))
@@ -91,18 +90,18 @@ def help_info(message):
     text = (
         "🛡️ **TRUST & SAFETY GUIDE**\n"
         "━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "• **Garena Rules Safe:** Hum limit ke sath likes bhejte hain, bachi hui likes agle din milti hain.\n"
-        "• **Zero Ban Risk:** Aapki ID par koi khatra nahi hota.\n"
+        "• **Garena Rules Safe:** 100 se zyada likes hone par limit ke hisab se roz likes milti hain.\n"
+        "• **Zero Ban Risk:** ID 100% safe rehti hai.\n"
         "• **Fast Support:** Payment ke baad turant UTR aur UID submit karein."
     )
     bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=get_main_menu(message.from_user.id))
 
-# Admin Dashboard (Strictly for ADMIN_ID)
+# Admin Dashboard
 @bot.message_handler(func=lambda message: message.text == "👑 Admin Dashboard")
 def admin_dashboard(message):
     safe_delete(message.chat.id, message.message_id)
     if message.from_user.id != ADMIN_ID:
-        bot.send_message(message.chat.id, "❌ Aap yeh command use nahi kar sakte.", reply_markup=get_main_menu(message.from_user.id))
+        bot.send_message(message.chat.id, "❌ Unauthorized.", reply_markup=get_main_menu(message.from_user.id))
         return
 
     conn = sqlite3.connect('bot_database.db')
@@ -119,19 +118,18 @@ def admin_dashboard(message):
     )
     bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=get_main_menu(message.from_user.id))
 
-# Plan Selected -> Show Professional Card with QR and UPI options
+# Plan Selection Handler (Checks for 100+ Likes Special Notice)
 @bot.callback_query_handler(func=lambda call: call.data.startswith('plan_'))
 def handle_plan_selection(call):
-    prices = {
-        'plan_5': ("₹5", "40 Likes"), 'plan_10': ("₹10", "90 Likes"),
-        'plan_15': ("₹15", "145 Likes"), 'plan_20': ("₹20", "205 Likes"),
-        'plan_25': ("₹25", "270 Likes"), 'plan_30': ("₹30", "340 Likes"),
-        'plan_35': ("₹35", "415 Likes"), 'plan_40': ("₹40", "500 Likes"),
-        'plan_45': ("₹45", "585 Likes"), 'plan_50': ("₹50", "700 Likes")
-    }
+    # format: plan_PRICE_LIKES
+    parts = call.data.split('_')
+    price_val = parts[1]
+    likes_val = int(parts[2])
     
-    price, likes = prices.get(call.data, ("₹5", "40 Likes"))
-    user_states[call.from_user.id] = {'state': 'waiting_for_utr', 'plan': f"{price} - {likes}"}
+    price_str = f"₹{price_val}"
+    likes_str = f"{likes_val} Likes"
+    
+    user_states[call.from_user.id] = {'state': 'waiting_for_utr', 'plan': f"{price_str} - {likes_str}"}
     bot.answer_callback_query(call.id)
     safe_delete(call.message.chat.id, call.message.message_id)
 
@@ -141,18 +139,30 @@ def handle_plan_selection(call):
         types.InlineKeyboardButton("📋 Copy UPI ID", callback_data='show_upi')
     )
 
-    card_text = (
-        f"📦 **ORDER SUMMARY CARD**\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"🔹 **Plan:** `{price} — {likes}`\n"
-        f"👤 **Name:** Santosh Rawat\n\n"
-        f"⚠️ **Trust Notice:** Garena rules ke tahat daily limit me likes milenge taaki ID 100% safe rahe.\n\n"
-        f"👇 **Payment ke liye upar diye gaye kisi ek option par click karein:**"
-    )
+    # Agar 100 se zyada likes hain toh special safety notice dikhayega
+    if likes_val > 100:
+        notice_text = (
+            f"📦 **ORDER SUMMARY CARD (MEGA PACK)**\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🔹 **Plan:** `{price_str} — {likes_str}`\n"
+            f"👤 **Name:** Santosh Rawat\n\n"
+            f"⚠️ **Zaroori Suchna (100+ Likes Notice):**\n"
+            f"Garena ke rules ke mutabiq ek din mein sirf **100 Likes** ki limit hoti hai. Isiliye aapko aaj 100 likes milenge aur bachi hui likes **agle din (next day)** aur phir uske agle din milti rahengi jab tak aapke saare likes poore nahi ho jaate. Isse aapki ID 100% safe rahegi!\n\n"
+            f"👇 **Payment ke liye upar diye gaye kisi ek option par click karein:**"
+        )
+    else:
+        notice_text = (
+            f"📦 **ORDER SUMMARY CARD**\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🔹 **Plan:** `{price_str} — {likes_str}`\n"
+            f"👤 **Name:** Santosh Rawat\n\n"
+            f"🛡️ **Safety Guarantee:** Garena rules ke mutabiq secure delivery.\n\n"
+            f"👇 **Payment ke liye upar diye gaye kisi ek option par click karein:**"
+        )
     
-    bot.send_message(call.message.chat.id, card_text, parse_mode='Markdown', reply_markup=markup)
+    bot.send_message(call.message.chat.id, notice_text, parse_mode='Markdown', reply_markup=markup)
 
-# Handle QR Code Button Click -> QR Image with "Payment Ho Gaya" at the bottom
+# Show QR Image with "Payment Ho Gaya" at bottom
 @bot.callback_query_handler(func=lambda call: call.data == 'show_qr')
 def send_qr_image(call):
     bot.answer_callback_query(call.id)
@@ -171,7 +181,7 @@ def send_qr_image(call):
     )
     bot.send_photo(call.message.chat.id, qr_url, caption=caption, parse_mode='Markdown', reply_markup=markup)
 
-# Handle UPI ID Button Click -> UPI details with "Payment Ho Gaya" at the bottom
+# Show UPI Details with "Payment Ho Gaya" at bottom
 @bot.callback_query_handler(func=lambda call: call.data == 'show_upi')
 def send_upi_details(call):
     bot.answer_callback_query(call.id)
@@ -190,7 +200,7 @@ def send_upi_details(call):
     )
     bot.send_message(call.message.chat.id, upi_text, parse_mode='Markdown', reply_markup=markup)
 
-# Prompt user for UTR when they click "Payment Ho Gaya"
+# Prompt for UTR
 @bot.callback_query_handler(func=lambda call: call.data == 'send_utr_prompt')
 def prompt_utr(call):
     bot.answer_callback_query(call.id)
@@ -200,11 +210,11 @@ def prompt_utr(call):
         call.message.chat.id,
         "📝 **ENTER TRANSACTION DETAILS**\n"
         "━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "Kripya apne payment ka **12-digit UTR / Reference Number** yahan chat mein type karke bhejein:",
+        "Kripya apne payment ka **12-digit UTR / Transaction Number** yahan chat mein type karke bhejein:",
         parse_mode='Markdown'
     )
 
-# Handle text inputs (UTR & Game UID sequence)
+# Handle Text Inputs (UTR -> UID Sequence)
 @bot.message_handler(func=lambda message: True)
 def handle_messages(message):
     user_id = message.from_user.id
@@ -245,10 +255,10 @@ def handle_messages(message):
 
         bot.send_message(
             message.chat.id,
-            "🎉 **ORDER PLACED SUCCESSFULLY!**\n"
+            "🎉 **CONGRATULATIONS! ORDER PLACED SUCCESSFULLY!**\n"
             "━━━━━━━━━━━━━━━━━━━━━━━\n"
             f"📦 Plan: `{plan_selected}`\n"
-            f"🆔 UID: `{game_uid}`\n"
+            f"🆔 Game UID: `{game_uid}`\n"
             f"🔢 UTR: `{utr}`\n\n"
             "Admin dwara payment verify hote hi aapka daily likes process shuru kar diya jayega! 🚀",
             parse_mode='Markdown',
@@ -257,11 +267,11 @@ def handle_messages(message):
     else:
         bot.reply_to(message, "Kripya menu ka use karein ya /start dabayein.", reply_markup=get_main_menu(user_id))
 
-# Admin Orders List Command
+# Admin List Command
 @bot.message_handler(commands=['list', 'export'])
 def list_orders(message):
     if message.from_user.id != ADMIN_ID:
-        bot.reply_to(message, "❌ Aap authorized nahi hain.")
+        bot.reply_to(message, "❌ Unauthorized.")
         return
 
     conn = sqlite3.connect('bot_database.db')
