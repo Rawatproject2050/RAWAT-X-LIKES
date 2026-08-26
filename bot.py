@@ -5,7 +5,6 @@ import os
 import threading
 from flask import Flask
 
-# Render Environment Variables se securely uthayega
 TOKEN = os.getenv('BOT_TOKEN', 'YOUR_BOT_TOKEN_HERE')
 ADMIN_ID = int(os.getenv('ADMIN_ID', '6665529050'))
 
@@ -33,7 +32,6 @@ init_db()
 
 user_states = {}
 
-# Dynamic Keyboard: Admin ke liye sirf dashboard, baaki users ke liye normal menu
 def get_main_menu(user_id):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     if user_id == ADMIN_ID:
@@ -72,10 +70,11 @@ def send_welcome(message):
     text = (
         "𖣠 𝑳𝒊𝒌𝒆𝒔 𝑺𝒆𝒓𝒗𝒊𝒄𝒆 𖣠\n"
         "╭╌╌╌╌╌╌╌╌╌╌╌╮\n"
-        "⌬ *Get fast, secure and genuine profile likes everyday.*\n"
-        "╰╌╌╌╌╌╌╌╌╌╌╌╯\n\n"
-        "💎 **𝑪𝑯𝑶𝑶𝑺𝑬 𝒀𝑶𝑼𝑹 𝑷𝑳𝑨𝑵:**\n"
-        "👇 *Apna pasandida plan select karein:*"
+        "🔥 LIKES NOT DEPLOYED 🔥\n\n"
+        "⌬ Get fast, secure and genuine profile likes everyday.\n\n"
+        "💎 𝑪𝑯𝑶𝑶𝑺𝑬 𝒀𝑶𝑼𝑹 𝑷𝑳𝑨𝑵:\n"
+        "👇 Apna pasandida plan select karein:\n"
+        "╰╌╌╌╌╌╌╌╌╌╌╌╯"
     )
     
     bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=markup)
@@ -86,14 +85,15 @@ def help_info(message):
     text = (
         "𖣠 𝑻𝒓𝒖𝒔𝒕 & 𝑺𝒂𝒇𝒆𝒕𝒚 𖣠\n"
         "╭╌╌╌╌╌╌╌╌╌╌╌╮\n"
-        "⌬ **Garena Rules Safe:** Limit ke hisab se roz likes milti hain.\n"
-        "⌬ **Zero Ban Risk:** ID 100% safe rehti hai.\n"
-        "⌬ **Fast Support:** Payment ke baad turant UTR aur UID submit karein.\n"
+        "🛡️ SECURITY & RULES:\n\n"
+        "⌬ Garena Rules Safe: Limit ke hisab se roz likes milti hain.\n"
+        "⌬ Zero Ban Risk: ID 100% safe rehti hai.\n"
+        "⌬ Fast Support: Payment ke baad turant UTR aur UID submit karein.\n"
         "╰╌╌╌╌╌╌╌╌╌╌╌╯"
     )
     bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=get_main_menu(message.from_user.id))
 
-# Admin Dashboard (Sirf Admin ko dikhega)
+# Admin Dashboard
 @bot.message_handler(func=lambda message: message.text == "👑 Admin Dashboard")
 def admin_dashboard(message):
     if message.from_user.id != ADMIN_ID:
@@ -107,15 +107,54 @@ def admin_dashboard(message):
     pending_count = cursor.fetchone()[0]
     conn.close()
 
+    admin_markup = types.InlineKeyboardMarkup(row_width=1)
+    admin_markup.add(
+        types.InlineKeyboardButton(f"📊 View All Orders List ({total_count})", callback_data='admin_list_total'),
+        types.InlineKeyboardButton(f"⏳ View Pending List ({pending_count})", callback_data='admin_list_pending')
+    )
+
     text = (
         "𖣠 𝑨𝒅𝒎𝒊𝒏 𝑷𝒂𝒏𝒆𝒍 𖣠\n"
         "╭╌╌╌╌╌╌╌╌╌╌╌╮\n"
-        f"📊 **𝑻𝒐𝒕𝒂𝒍 𝑶𝒓𝒅𝒆𝒓𝒔:** `{total_count}`\n"
-        f"⏳ **𝑷𝒆𝒏𝒅𝒊𝒏𝒈 𝑽𝒆𝒓𝒊𝒇𝒊𝒄𝒂𝒕𝒊𝒐𝒏𝒔:** `{pending_count}`\n"
-        "╰╌╌╌╌╌╌╌╌╌╌╌╯\n\n"
-        "💡 *Note:* Jaise hi koi user UTR aur UID bhejega, aapko stylish card mil jayega."
+        "👑 CONTROL CENTER\n\n"
+        f"📊 𝑻𝒐𝒕𝒂𝒍 𝑶𝒓𝒅𝒆𝒓𝒔: `{total_count}`\n"
+        f"⏳ 𝑷𝒆𝒏𝒅𝒊𝒏𝒈 𝑽𝒆𝒓𝒊𝒇𝒊𝒄𝒂𝒕𝒊𝒐𝒏𝒔: `{pending_count}`\n\n"
+        "👇 Niche diye gaye buttons se orders check karein:\n"
+        "╰╌╌╌╌╌╌╌╌╌╌╌╯"
     )
-    bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=get_main_menu(message.from_user.id))
+    bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=admin_markup)
+
+# Admin List View Handler
+@bot.callback_query_handler(func=lambda call: call.data in ['admin_list_total', 'admin_list_pending'])
+def show_admin_orders_list(call):
+    if call.from_user.id != ADMIN_ID:
+        bot.answer_callback_query(call.id, "❌ Unauthorized!", show_alert=True)
+        return
+
+    bot.answer_callback_query(call.id)
+    conn = sqlite3.connect('bot_database.db', check_same_thread=False)
+    cursor = conn.cursor()
+
+    if call.data == 'admin_list_total':
+        cursor.execute("SELECT id, username, plan_name, game_uid, status FROM orders ORDER BY id DESC LIMIT 10")
+        title = "📊 RECENT 10 ORDERS LIST"
+    else:
+        cursor.execute("SELECT id, username, plan_name, game_uid, status FROM orders WHERE status='Pending Verification' ORDER BY id DESC")
+        title = "⏳ PENDING VERIFICATIONS LIST"
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    if not rows:
+        bot.send_message(call.message.chat.id, "𖣠 𝑳𝒊𝒔𝒕 𝑬𝒎𝒑𝒕𝒚 𖣠\n╭╌╌╌╌╌╌╌╌╌╌╌╮\n⌬ Koi order nahi mila!\n╰╌╌╌╌╌╌╌╌╌╌╌╯", parse_mode='Markdown')
+        return
+
+    list_text = f"𖣠 {title} 𖣠\n╭╌╌╌╌╌╌╌╌╌╌╌╮\n"
+    for r in rows:
+        list_text += f"⌬ ID: `{r[0]}` | User: `{r[1]}`\n    📦 `{r[2]}`\n    🎮 UID: `{r[3]}`\n    📌 Status: `{r[4]}`\n--------------------\n"
+    list_text += "╰╌╌╌╌╌╌╌╌╌╌╌╯"
+
+    bot.send_message(call.message.chat.id, list_text, parse_mode='Markdown')
 
 # Plan Selection Handler
 @bot.callback_query_handler(func=lambda call: call.data.startswith('plan_'))
@@ -147,11 +186,12 @@ def handle_plan_selection(call):
     notice_text = (
         "𖣠 𝑶𝒓𝒅𝒆𝒓 𝑺𝒖𝒎𝒎𝒂𝒓𝒚 𖣠\n"
         "╭╌╌╌╌╌╌╌╌╌╌╌╮\n"
+        "💳 PAYMENT DETAILS:\n\n"
         f"⌬ 𝑷𝒍𝒂𝒏 : `{price_str} — {likes_str}`\n"
-        f"⌬ 𝑷𝒂𝒚 𝑻𝒐 : `Santosh Rawat`\n"
-        "╰╌╌╌╌╌╌╌╌╌╌╌╯\n\n"
-        "🛡️ *100% Garena Safe Delivery*\n"
-        "👇 **Payment ke liye option select karein:**"
+        f"⌬ 𝑷𝒂𝒚 𝑻𝒐 : `Santosh Rawat`\n\n"
+        "🛡️ 100% Garena Safe Delivery\n"
+        "👇 Payment ke liye option select karein:\n"
+        "╰╌╌╌╌╌╌╌╌╌╌╌╯"
     )
     
     bot.send_message(call.message.chat.id, notice_text, parse_mode='Markdown', reply_markup=markup)
@@ -175,6 +215,7 @@ def send_qr_image(call):
         caption=(
             "𖣠 𝑸𝑹 𝑪𝑶𝑫𝑬 𝑷𝑨𝒀𝑴𝑬𝑵𝑻 𖣠\n"
             "╭╌╌╌╌╌╌╌╌╌╌╌╮\n"
+            "📷 SCAN & PAY:\n\n"
             "⌬ Scan karke exact amount pay karein.\n"
             "╰╌╌╌╌╌╌╌╌╌╌╌╯"
         ), 
@@ -197,6 +238,7 @@ def send_upi_details(call):
     upi_text = (
         "𖣠 𝑫𝑰𝑹𝑬𝑪𝑻 𝑼𝑷𝑰 𖣠\n"
         "╭╌╌╌╌╌╌╌╌╌╌╌╮\n"
+        "⚡ UPI TRANSFER:\n\n"
         "⌬ 𝑼𝑷𝑰 : `santoshkumarram085-1@oksbi`\n"
         "⌬ 𝑵𝒂𝒎𝒆 : `Santosh Rawat`\n"
         "╰╌╌╌╌╌╌╌╌╌╌╌╯"
@@ -216,12 +258,13 @@ def prompt_utr(call):
         call.message.chat.id,
         "𖣠 𝑬𝑵𝑻𝑬𝑹 𝑼𝑻𝑹 𖣠\n"
         "╭╌╌╌╌╌╌╌╌╌╌╌╮\n"
+        "📝 VERIFICATION STEP:\n\n"
         "⌬ Kripya 12-digit UTR number yahan bhejein:\n"
         "╰╌╌╌╌╌╌╌╌╌╌╌╯",
         parse_mode='Markdown'
     )
 
-# Handle Text Inputs (UTR -> UID Sequence with Auto-Clean)
+# Handle Text Inputs (UTR -> UID Sequence)
 @bot.message_handler(func=lambda message: True)
 def handle_messages(message):
     if message.from_user.id == ADMIN_ID and message.text in ["👑 Admin Dashboard"]:
@@ -244,9 +287,10 @@ def handle_messages(message):
             message.chat.id,
             "𖣠 𝑼𝑻𝑹 𝑹𝑬𝑪𝑬𝑰𝑽𝑬𝑫 𖣠\n"
             "╭╌╌╌╌╌╌╌╌╌╌╌╮\n"
-            f"⌬ 𝑼𝑻𝑹 : `{utr}`\n"
-            "╰╌╌╌╌╌╌╌╌╌╌╌╯\n\n"
-            "🎯 **Aakhri Step:** Ab apna **Free Fire Game UID** yahan bhejein:",
+            "✅ TRANSACTION LOGGED:\n\n"
+            f"⌬ 𝑼𝑻𝑹 : `{utr}`\n\n"
+            "🎯 Aakhri Step: Ab apna Free Fire Game UID yahan bhejein:\n"
+            "╰╌╌╌╌╌╌╌╌╌╌╌╯",
             parse_mode='Markdown'
         )
 
@@ -277,16 +321,16 @@ def handle_messages(message):
             message.chat.id,
             "𖣠 𝑶𝑹𝑫𝑬𝑹 𝑺𝑼𝑩𝑴𝑰𝑻𝑻𝑬𝑫 𖣠\n"
             "╭╌╌╌╌╌╌╌╌╌╌╌╮\n"
+            "🚀 ORDER PLACED SUCCESSFULLY:\n\n"
             f"⌬ 𝑷𝒍𝒂𝒏 : `{plan_selected}`\n"
             f"⌬ 𝑼𝑰𝑫 : `{game_uid}`\n"
-            f"⌬ 𝑼𝑻𝑹 : `{utr}`\n"
-            "╰╌╌╌╌╌╌╌╌╌╌╌╯\n\n"
-            "Aapka order verification ke liye Admin ke paas bhej diya gaya hai! 🚀",
+            f"⌬ 𝑼𝑻𝑹 : `{utr}`\n\n"
+            "Aapka order verification ke liye Admin ke paas bhej diya gaya hai! ⚡\n"
+            "╰╌╌╌╌╌╌╌╌╌╌╌╯",
             parse_mode='Markdown',
             reply_markup=get_main_menu(user_id)
         )
 
-        # 👑 ADMIN KE LIYE TAGRA STYLISH VERIFICATION CARD WITH YES/NO BUTTONS
         admin_markup = types.InlineKeyboardMarkup(row_width=2)
         admin_markup.add(
             types.InlineKeyboardButton("✅ Yes (Approve)", callback_data=f"approve_{order_id}_{user_id}"),
@@ -296,14 +340,15 @@ def handle_messages(message):
         admin_card = (
             "𖣠 𝑵𝑬𝑾 𝑼𝑻𝑹 𝑽𝑬𝑹𝑰𝑭𝑰𝑪𝑨𝑻𝑰𝑶𝑵 𖣠\n"
             "╭╌╌╌╌╌╌╌╌╌╌╌╮\n"
+            "🔔 NEW ORDER ALERT:\n\n"
             f"⌬ 𝑶𝒓𝒅𝒆𝒓 𝑰𝑫 : `{order_id}`\n"
             f"⌬ 𝑪𝒖𝒔𝒕𝒐𝒎𝒆𝒓 : `{username}`\n"
             f"⌬ 𝑻𝒆𝒍𝒆𝒈𝒓𝒂𝒎 𝑰𝑫 : `{user_id}`\n"
             f"⌬ 𝑷𝒍𝒂𝒏 : `{plan_selected}`\n"
             f"⌬ 𝑮𝒂𝒎𝒆 𝑼𝑰𝑫 : `{game_uid}`\n"
-            f"⌬ 𝑼𝑻𝑹 : `{utr}`\n"
-            "╰╌╌╌╌╌╌╌╌╌╌╌╯\n\n"
-            "👇 *Kripya verify karke decision lein:*"
+            f"⌬ 𝑼𝑻𝑹 : `{utr}`\n\n"
+            "👇 Kripya verify karke decision lein:\n"
+            "╰╌╌╌╌╌╌╌╌╌╌╌╯"
         )
         bot.send_message(ADMIN_ID, admin_card, parse_mode='Markdown', reply_markup=admin_markup)
 
@@ -311,7 +356,7 @@ def handle_messages(message):
         if message.from_user.id != ADMIN_ID:
             bot.reply_to(message, "Kripya menu ka use karein ya /start dabayein.", reply_markup=get_main_menu(user_id))
 
-# Admin Approval / Rejection Handler (Card Gayab Ho Jayega)
+# Admin Approval / Rejection Handler
 @bot.callback_query_handler(func=lambda call: call.data.startswith('approve_') or call.data.startswith('reject_'))
 def handle_admin_verification(call):
     if call.from_user.id != ADMIN_ID:
@@ -333,7 +378,6 @@ def handle_admin_verification(call):
 
         bot.answer_callback_query(call.id, "Order Approved Successfully!")
         
-        # Admin card ko delete karke clean update dena
         try:
             bot.delete_message(call.message.chat.id, call.message.message_id)
         except Exception:
@@ -341,7 +385,7 @@ def handle_admin_verification(call):
 
         bot.send_message(
             ADMIN_ID,
-            f"𖣠 𝑶𝑹𝑫𝑬𝑹 #{order_id} 𝑨𝑷𝑷𝑹𝑶𝑽𝑬𝑫 ✅",
+            f"𖣠 𝑶𝑹𝑫𝑬𝑹 #{order_id} 𝑨𝑷𝑷𝑹𝑶𝑽𝑬𝑫 ✅\n╭╌╌╌╌╌╌╌╌╌╌╌╮\n⌬ Status: Successfully Processed\n╰╌╌╌╌╌╌╌╌╌╌╌╯",
             parse_mode='Markdown'
         )
 
@@ -349,6 +393,7 @@ def handle_admin_verification(call):
             target_user_id,
             "𖣠 𝑪𝑶𝑵𝑮𝑹𝑨𝑻𝑼𝑳𝑨𝑻𝑰𝑶𝑵𝑺 𖣠\n"
             "╭╌╌╌╌╌╌╌╌╌╌╌╮\n"
+            "🎉 PAYMENT VERIFIED:\n\n"
             "⌬ Aapka UTR verify ho gaya hai!\n"
             "⌬ Likes bhejne ki process shuru ho gayi hai. 🚀\n"
             "╰╌╌╌╌╌╌╌╌╌╌╌╯",
@@ -362,7 +407,6 @@ def handle_admin_verification(call):
 
         bot.answer_callback_query(call.id, "Order Rejected.")
         
-        # Admin card ko delete karke clean update dena
         try:
             bot.delete_message(call.message.chat.id, call.message.message_id)
         except Exception:
@@ -370,14 +414,15 @@ def handle_admin_verification(call):
 
         bot.send_message(
             ADMIN_ID,
-            f"𖣠 𝑶𝑹𝑫𝑬𝑹 #{order_id} 𝑹𝑬𝑱𝑬𝑪𝑻𝑬𝑫 ❌",
+            f"𖣠 𝑶𝑹𝑫𝑬𝑹 #{order_id} 𝑹𝑬𝑱𝑬𝑪𝑻𝑬𝑫 ❌\n╭╌╌╌╌╌╌╌╌╌╌╌╮\n⌬ Status: Payment Invalid\n╰╌╌╌╌╌╌╌╌╌╌╌╯",
             parse_mode='Markdown'
         )
 
         bot.send_message(
             target_user_id,
-            "𖣠 𝑽𝑬𝑿𝑰𝑭𝑰𝑪𝑨𝑻𝑰𝑶𝑵 𝑭𝑨𝑰𝑳𝑬𝑫 𖣠\n"
+            "𖣠 𝑽𝑬𝑹𝑰𝑭𝑰𝑪𝑨𝑻𝑰𝑶𝑵 𝑭𝑨𝑰𝑳𝑬𝑫 𖣠\n"
             "╭╌╌╌╌╌╌╌╌╌╌╌╮\n"
+            "⚠️ ERROR ENCOUNTERED:\n\n"
             "⌬ UTR match nahi hua ya galat hai.\n"
             "⌬ Kripya dobara sahi UTR ke sath order dalein.\n"
             "╰╌╌╌╌╌╌╌╌╌╌╌╯",
