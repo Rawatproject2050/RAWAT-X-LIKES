@@ -44,13 +44,7 @@ def get_main_menu(user_id):
         markup.add(types.KeyboardButton("👑 Admin Dashboard"))
     return markup
 
-def safe_delete(chat_id, message_id):
-    try:
-        bot.delete_message(chat_id, message_id)
-    except Exception:
-        pass
-
-# /start & Main Menu Handler - Plans hamesha upar dikhte rahenge
+# /start & Main Menu Handler - Plans hamesha upar active rahenge
 @bot.message_handler(commands=['start'])
 @bot.message_handler(func=lambda message: message.text in ["🚀 Start Bot", "💎 Buy Likes & Pricing"])
 def send_welcome(message):
@@ -91,7 +85,7 @@ def help_info(message):
     )
     bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=get_main_menu(message.from_user.id))
 
-# Admin Dashboard
+# Admin Dashboard - Professional Card Style with Pending Counts
 @bot.message_handler(func=lambda message: message.text == "👑 Admin Dashboard")
 def admin_dashboard(message):
     if message.from_user.id != ADMIN_ID:
@@ -101,21 +95,22 @@ def admin_dashboard(message):
     conn = sqlite3.connect('bot_database.db')
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM orders")
-    count = cursor.fetchone()[0]
+    total_count = cursor.fetchone()[0]
     cursor.execute("SELECT COUNT(*) FROM orders WHERE status='Pending Verification'")
     pending_count = cursor.fetchone()[0]
     conn.close()
 
     text = (
-        "👑 **ADMIN CONTROL PANEL**\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"📊 Total Orders: `{count}`\n"
-        f"⏳ Pending Verifications: `{pending_count}`\n\n"
-        "💻 *Note:* UTR submissions directly aapko verification card ke roop mein milenge."
+        "╔═══════════════════════╗\n"
+        "   👑 **ADMIN CONTROL PANEL**\n"
+        "╚═══════════════════════╝\n"
+        f"📊 **Total Orders:** `{total_count}`\n"
+        f"⏳ **Pending Verifications:** `{pending_count}`\n\n"
+        "💡 *Note:* Jaise hi koi user UTR aur Free Fire UID bhejega, aapko ek professional verification card milega jisme Yes/No ka option hoga."
     )
     bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=get_main_menu(message.from_user.id))
 
-# Plan Selection Handler (Professional Card Style Layout)
+# Plan Selection Handler (Professional Card Style)
 @bot.callback_query_handler(func=lambda call: call.data.startswith('plan_'))
 def handle_plan_selection(call):
     parts = call.data.split('_')
@@ -145,7 +140,7 @@ def handle_plan_selection(call):
             f"🔹 **Plan Selected:** `{price_str} — {likes_str}`\n"
             f"👤 **Pay To:** Santosh Rawat\n\n"
             f"⚠️ **Zaroori Suchna (100+ Likes Notice):**\n"
-            f"Garena rules ke mutabiq ek din mein sirf **100 Likes** ki limit hoti hai. Isiliye aapko aaj 100 likes milenge aur bachi hui likes agle dino mein milti rahengi jab tak poore na ho jayein!\n\n"
+            f"Garena rules ke mutabiq ek din mein sirf **100 Likes** ki limit hoti hai. Isiliye aapko roz limit ke hisab se likes milti rahengi jab tak poore na ho jayein!\n\n"
             f"👇 **Payment ke liye option select karein:**"
         )
     else:
@@ -161,7 +156,7 @@ def handle_plan_selection(call):
     
     bot.send_message(call.message.chat.id, notice_text, parse_mode='Markdown', reply_markup=markup)
 
-# Show QR Image with "Payment Ho Gaya"
+# Show QR Image with "Payment Ho Gaya" button
 @bot.callback_query_handler(func=lambda call: call.data == 'show_qr')
 def send_qr_image(call):
     bot.answer_callback_query(call.id)
@@ -178,13 +173,13 @@ def send_qr_image(call):
             "    📷 **QR CODE PAYMENT**\n"
             "╚═══════════════════════╝\n"
             "• Is QR code ko scan karke exact amount pay karein.\n"
-            "• Payment ke baad niche diye gaye button par click karein."
+            "• Payment karne ke baad niche diye gaye button par click karein."
         ), 
         parse_mode='Markdown', 
         reply_markup=markup
     )
 
-# Show UPI Details with "Payment Ho Gaya"
+# Show UPI Details with "Payment Ho Gaya" button
 @bot.callback_query_handler(func=lambda call: call.data == 'show_upi')
 def send_upi_details(call):
     bot.answer_callback_query(call.id)
@@ -219,7 +214,7 @@ def prompt_utr(call):
 # Handle Text Inputs (UTR -> UID Sequence)
 @bot.message_handler(func=lambda message: True)
 def handle_messages(message):
-    # Agar message Admin ne bheja hai aur wo kisi command/button par nahi hai toh ignore karein
+    # Admin ke menu buttons ko ignore karne ke liye
     if message.from_user.id == ADMIN_ID and message.text in ["🚀 Start Bot", "💎 Buy Likes & Pricing", "ℹ️ Help & Trust Guide", "👑 Admin Dashboard"]:
         return
 
@@ -257,7 +252,7 @@ def handle_messages(message):
 
         user_states.pop(user_id, None)
 
-        # User ko confirmation
+        # User ko confirmation message
         bot.send_message(
             message.chat.id,
             "╔═══════════════════════╗\n"
@@ -271,7 +266,7 @@ def handle_messages(message):
             reply_markup=get_main_menu(user_id)
         )
 
-        # 👑 ADMIN KO VERIFICATION CARD BHEJNA WITH YES / NO BUTTONS
+        # 👑 ADMIN KE LIYE TAGRA PROFESSIONAL VERIFICATION CARD WITH YES / NO BUTTONS
         admin_markup = types.InlineKeyboardMarkup(row_width=2)
         admin_markup.add(
             types.InlineKeyboardButton("✅ Yes (Approve)", callback_data=f"approve_{order_id}_{user_id}"),
@@ -280,14 +275,16 @@ def handle_messages(message):
 
         admin_card = (
             "╔═══════════════════════╗\n"
-            "    🚨 **NEW ORDER VERIFICATION**\n"
+            "    🚨 **NEW UTR VERIFICATION**\n"
             "╚═══════════════════════╝\n"
             f"🔹 **Order ID:** `{order_id}`\n"
-            f"👤 **Customer:** @{username} (ID: `{user_id}`)\n"
-            f"📦 **Plan:** `{plan_selected}`\n"
-            f"🆔 **Free Fire UID:** `{game_uid}`\n"
+            f"👤 **Customer Name:** `{username}`\n"
+            f"💬 **Username:** @{username}\n"
+            f"🆔 **Telegram ID:** `{user_id}`\n"
+            f"📦 **Selected Plan:** `{plan_selected}`\n"
+            f"🎮 **Free Fire UID:** `{game_uid}`\n"
             f"🔢 **UTR Number:** `{utr}`\n\n"
-            "👇 *Kripya payment verify karke niche decision lein:*"
+            "👇 *Kripya UTR check karein aur niche decision lein:*"
         )
         bot.send_message(ADMIN_ID, admin_card, parse_mode='Markdown', reply_markup=admin_markup)
 
@@ -295,7 +292,7 @@ def handle_messages(message):
         if message.from_user.id != ADMIN_ID:
             bot.reply_to(message, "Kripya menu ka use karein ya /start dabayein.", reply_markup=get_main_menu(user_id))
 
-# Admin Approval / Rejection Callback Handlers
+# Admin Approval / Rejection Handler
 @bot.callback_query_handler(func=lambda call: call.data.startswith('approve_') or call.data.startswith('reject_'))
 def handle_admin_verification(call):
     if call.from_user.id != ADMIN_ID:
@@ -316,25 +313,25 @@ def handle_admin_verification(call):
         conn.close()
 
         bot.answer_callback_query(call.id, "Order Approved Successfully!")
-        bot.edit_message_caption(
-            caption=call.message.caption + "\n\n✅ **STATUS: APPROVED BY ADMIN**",
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            parse_mode='Markdown'
-        ) if call.message.caption else bot.edit_message_text(
-            text=call.message.text + "\n\n✅ **STATUS: APPROVED BY ADMIN**",
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            parse_mode='Markdown'
-        )
+        
+        # Admin card ko update karke status dikhana
+        try:
+            bot.edit_message_text(
+                text=call.message.text + "\n\n✅ **STATUS: APPROVED BY ADMIN**",
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                parse_mode='Markdown'
+            )
+        except Exception:
+            pass
 
-        # User ko Congratulations message
+        # User ke paas Congratulations SMS bhejna
         bot.send_message(
             target_user_id,
             "╔═══════════════════════╗\n"
-            "  🎉 **PAYMENT APPROVED!**\n"
+            "  🎉 **CONGRATULATIONS!**\n"
             "╚═══════════════════════╝\n"
-            "Badhai ho! Aapka payment successfully verify ho gaya hai. Aapke Free Fire account par likes bhejni shuru kar di gayi hain! 🚀🔥",
+            "Badhai ho! Aapka UTR successfully verify ho gaya hai. Aapke Free Fire account par likes bhejne ki process shuru kar di gayi hai! 🚀🔥",
             parse_mode='Markdown'
         )
 
@@ -344,25 +341,25 @@ def handle_admin_verification(call):
         conn.close()
 
         bot.answer_callback_query(call.id, "Order Rejected.")
-        bot.edit_message_caption(
-            caption=call.message.caption + "\n\n❌ **STATUS: REJECTED BY ADMIN**",
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            parse_mode='Markdown'
-        ) if call.message.caption else bot.edit_message_text(
-            text=call.message.text + "\n\n❌ **STATUS: REJECTED BY ADMIN**",
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            parse_mode='Markdown'
-        )
+        
+        # Admin card ko update karke status dikhana
+        try:
+            bot.edit_message_text(
+                text=call.message.text + "\n\n❌ **STATUS: REJECTED BY ADMIN**",
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                parse_mode='Markdown'
+            )
+        except Exception:
+            pass
 
-        # User ko Rejection / Correction message
+        # User ke paas Rejection / Correction SMS bhejna
         bot.send_message(
             target_user_id,
             "╔═══════════════════════╗\n"
-            "  ❌ **PAYMENT VERIFICATION FAILED**\n"
+            "  ❌ **VERIFICATION FAILED**\n"
             "╚═══════════════════════╝\n"
-            "Khed hai, aapka UTR/Transaction verify nahi ho paya ya galat hai. Kripya apna payment dobara check karein ya sahi UTR ke sath phir se order place karein.",
+            "Khed hai, aapka UTR match nahi hua ya galat pay kiya gaya hai. Kripya apna payment dobara check karein ya sahi UTR ke sath naya order dalein.",
             parse_mode='Markdown'
         )
 
@@ -371,7 +368,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Professional Card Bot Web Service is Live!"
+    return "Professional Tagra Bot Web Service is Live!"
 
 def run_flask():
     port = int(os.getenv('PORT', 5000))
