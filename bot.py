@@ -11,7 +11,7 @@ ADMIN_ID = int(os.getenv('ADMIN_ID', '6665529050'))
 
 bot = telebot.TeleBot(TOKEN)
 
-# Database Setup (Fixed missing game_uid column issue)
+# Database Setup
 def init_db():
     conn = sqlite3.connect('bot_database.db', check_same_thread=False)
     cursor = conn.cursor()
@@ -33,21 +33,29 @@ init_db()
 
 user_states = {}
 
+# Dynamic Keyboard: Admin ke liye sirf dashboard, baaki users ke liye normal menu
 def get_main_menu(user_id):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-    markup.add(
-        types.KeyboardButton("🚀 Start Bot"),
-        types.KeyboardButton("💎 Buy Likes & Pricing"),
-        types.KeyboardButton("ℹ️ Help & Trust Guide")
-    )
     if user_id == ADMIN_ID:
         markup.add(types.KeyboardButton("👑 Admin Dashboard"))
+    else:
+        markup.add(
+            types.KeyboardButton("🚀 Start Bot"),
+            types.KeyboardButton("💎 Buy Likes & Pricing"),
+            types.KeyboardButton("ℹ️ Help & Trust Guide")
+        )
     return markup
 
 # /start & Main Menu Handler
 @bot.message_handler(commands=['start'])
 @bot.message_handler(func=lambda message: message.text in ["🚀 Start Bot", "💎 Buy Likes & Pricing"])
 def send_welcome(message):
+    # User ka pichhla message clean karne ki koshish
+    try:
+        bot.delete_message(message.chat.id, message.message_id)
+    except Exception:
+        pass
+
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
         types.InlineKeyboardButton("🟢 ₹5 — 40 Likes", callback_data='plan_5_40'),
@@ -63,12 +71,12 @@ def send_welcome(message):
     )
 
     text = (
-        "🔥 **FREE FIRE DAILY LIKES SERVICE** 🔥\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "╔═══════════════════════╗\n"
+        "   🔥 **FREE FIRE LIKES SERVICE**\n"
+        "╚═══════════════════════╝\n"
         "⚡ *Get fast, secure and genuine profile likes everyday.*\n\n"
         "💎 **CHOOSE YOUR PLAN BELOW:**\n"
-        "*(Bade plans par zyada likes aur bada fayda milta hai!)*\n\n"
-        "👇 *Apna pasandida plan select karne ke liye button dabayein:*"
+        "👇 *Apna pasandida plan select karein:*"
     )
     
     bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=markup)
@@ -77,19 +85,19 @@ def send_welcome(message):
 @bot.message_handler(func=lambda message: message.text == "ℹ️ Help & Trust Guide")
 def help_info(message):
     text = (
-        "🛡️ **TRUST & SAFETY GUIDE**\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "╔═══════════════════════╗\n"
+        "   🛡️ **TRUST & SAFETY GUIDE**\n"
+        "╚═══════════════════════╝\n"
         "• **Garena Rules Safe:** Limit ke hisab se roz likes milti hain.\n"
         "• **Zero Ban Risk:** ID 100% safe rehti hai.\n"
         "• **Fast Support:** Payment ke baad turant UTR aur UID submit karein."
     )
     bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=get_main_menu(message.from_user.id))
 
-# Admin Dashboard
+# Admin Dashboard (Sirf Admin ko dikhega)
 @bot.message_handler(func=lambda message: message.text == "👑 Admin Dashboard")
 def admin_dashboard(message):
     if message.from_user.id != ADMIN_ID:
-        bot.send_message(message.chat.id, "❌ Unauthorized.", reply_markup=get_main_menu(message.from_user.id))
         return
 
     conn = sqlite3.connect('bot_database.db', check_same_thread=False)
@@ -106,7 +114,7 @@ def admin_dashboard(message):
         "╚═══════════════════════╝\n"
         f"📊 **Total Orders:** `{total_count}`\n"
         f"⏳ **Pending Verifications:** `{pending_count}`\n\n"
-        "💡 *Note:* Jaise hi koi user UTR aur UID bhejega, aapko professional card milega."
+        "💡 *Note:* Jaise hi koi user UTR aur UID bhejega, aapko verification card mil jayega."
     )
     bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=get_main_menu(message.from_user.id))
 
@@ -126,6 +134,12 @@ def handle_plan_selection(call):
     }
     bot.answer_callback_query(call.id)
 
+    # Purana plan selection message hata kar clean look dena
+    try:
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+    except Exception:
+        pass
+
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
         types.InlineKeyboardButton("📷 View QR Code", callback_data='show_qr'),
@@ -133,13 +147,13 @@ def handle_plan_selection(call):
     )
 
     notice_text = (
-        f"╔═══════════════════════╗\n"
-        f"    📦 **ORDER SUMMARY CARD**\n"
-        f"╚═══════════════════════╝\n"
+        "╔═══════════════════════╗\n"
+        "    📦 **ORDER SUMMARY CARD**\n"
+        "╚═══════════════════════╝\n"
         f"🔹 **Plan Selected:** `{price_str} — {likes_str}`\n"
         f"👤 **Pay To:** Santosh Rawat\n\n"
-        f"🛡️ **Safety Guarantee:** 100% Garena Safe Delivery.\n\n"
-        f"👇 **Payment ke liye option select karein:**"
+        "🛡️ **Safety Guarantee:** 100% Garena Safe Delivery.\n\n"
+        "👇 **Payment ke liye option select karein:**"
     )
     
     bot.send_message(call.message.chat.id, notice_text, parse_mode='Markdown', reply_markup=markup)
@@ -148,8 +162,12 @@ def handle_plan_selection(call):
 @bot.callback_query_handler(func=lambda call: call.data == 'show_qr')
 def send_qr_image(call):
     bot.answer_callback_query(call.id)
+    try:
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+    except Exception:
+        pass
+
     qr_url = "https://i.postimg.cc/kGQwSRy4/QR-Code.png"
-    
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("✅ Payment Ho Gaya (Send UTR)", callback_data='send_utr_prompt'))
 
@@ -171,6 +189,10 @@ def send_qr_image(call):
 @bot.callback_query_handler(func=lambda call: call.data == 'show_upi')
 def send_upi_details(call):
     bot.answer_callback_query(call.id)
+    try:
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+    except Exception:
+        pass
     
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("✅ Payment Ho Gaya (Send UTR)", callback_data='send_utr_prompt'))
@@ -190,6 +212,11 @@ def send_upi_details(call):
 @bot.callback_query_handler(func=lambda call: call.data == 'send_utr_prompt')
 def prompt_utr(call):
     bot.answer_callback_query(call.id)
+    try:
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+    except Exception:
+        pass
+
     bot.send_message(
         call.message.chat.id,
         "╔═══════════════════════╗\n"
@@ -199,10 +226,10 @@ def prompt_utr(call):
         parse_mode='Markdown'
     )
 
-# Handle Text Inputs (UTR -> UID Sequence)
+# Handle Text Inputs (UTR -> UID Sequence with Auto-Clean)
 @bot.message_handler(func=lambda message: True)
 def handle_messages(message):
-    if message.from_user.id == ADMIN_ID and message.text in ["🚀 Start Bot", "💎 Buy Likes & Pricing", "ℹ️ Help & Trust Guide", "👑 Admin Dashboard"]:
+    if message.from_user.id == ADMIN_ID and message.text in ["👑 Admin Dashboard"]:
         return
 
     user_id = message.from_user.id
@@ -212,6 +239,12 @@ def handle_messages(message):
         utr = message.text.strip()
         user_states[user_id]['utr'] = utr
         user_states[user_id]['state'] = 'waiting_for_uid'
+
+        # User ka UTR message delete karna taaki chat clean rahe
+        try:
+            bot.delete_message(message.chat.id, message.message_id)
+        except Exception:
+            pass
 
         bot.send_message(
             message.chat.id,
@@ -228,6 +261,12 @@ def handle_messages(message):
         utr = state.get('utr')
         plan_selected = state.get('plan')
         username = message.from_user.username or message.from_user.first_name or "User"
+
+        # User ka UID message delete karna
+        try:
+            bot.delete_message(message.chat.id, message.message_id)
+        except Exception:
+            pass
 
         conn = sqlite3.connect('bot_database.db', check_same_thread=False)
         cursor = conn.cursor()
@@ -254,7 +293,7 @@ def handle_messages(message):
             reply_markup=get_main_menu(user_id)
         )
 
-        # Admin Verification Card with Yes/No Buttons
+        # Admin ke liye Professional Card with Yes/No Buttons
         admin_markup = types.InlineKeyboardMarkup(row_width=2)
         admin_markup.add(
             types.InlineKeyboardButton("✅ Yes (Approve)", callback_data=f"approve_{order_id}_{user_id}"),
