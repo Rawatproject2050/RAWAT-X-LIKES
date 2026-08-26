@@ -2,8 +2,10 @@ import telebot
 from telebot import types
 import sqlite3
 import os
+import threading
+from flask import Flask
 
-# Render ke environment variable se token uthayega (Secure method)
+# Render ke environment variable se token uthayega
 TOKEN = os.getenv('BOT_TOKEN')
 bot = telebot.TeleBot(TOKEN)
 
@@ -204,6 +206,21 @@ def list_orders(message):
     else:
         bot.send_message(message.chat.id, response, parse_mode='Markdown', reply_markup=get_main_menu())
 
+# --- Flask Server for Render Web Service Port Requirement ---
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Bot Web Service is active and running!"
+
+def run_flask():
+    port = int(os.getenv('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
+
 if __name__ == '__main__':
-    print("Secure Bot is running...")
+    # Flask ko alag thread par chalayein taaki bot polling na ruke
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.start()
+
+    print("Bot & Web Service are running...")
     bot.infinity_polling()
