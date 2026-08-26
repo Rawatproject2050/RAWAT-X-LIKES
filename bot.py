@@ -69,12 +69,12 @@ def send_welcome(message):
 
     text = (
         "❤️ ─── [ RAWAT X LIKES BOT ] ─── ❤️\n\n"
-        "╭─ { ⚡ 𝑳𝑰𝑲𝑬𝑺 𝑺𝑬𝑹𝑽𝑰𝑪𝑬 } ──╮\n"
+        "┌─ { ⚡ 𝑳𝑰𝑲𝑬𝑺 𝑺𝑬𝑹𝑽𝑰𝑪𝑬 } ──┐\n"
         "│ ⚡ Get fast, secure and genuine profile likes everyday.\n"
         "│\n"
         "│ 💎 𝑪𝑯𝑶𝑶𝑺𝑬 𝒀𝑶𝑼𝑹 𝑷𝑳𝑨𝑵:\n"
         "│ 👇 Apna pasandida plan select karein:\n"
-        "╰───────────────────────────⭔"
+        "└───────────────────────────⭔"
     )
     
     bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=markup)
@@ -83,11 +83,11 @@ def send_welcome(message):
 @bot.message_handler(func=lambda message: message.text == "ℹ️ Help & Trust Guide")
 def help_info(message):
     text = (
-        "╭─ { 🛡️ 𝑻𝑹𝑼𝑺𝑻 & 𝑺𝑨𝑭𝑬𝑻𝒀 } ──╮\n"
+        "┌─ { 🛡️ 𝑻𝑹𝑼𝑺𝑻 & 𝑺𝑨𝑭𝑬𝑻𝒀 } ──┐\n"
         "│ ⌬ Garena Rules Safe: Limit ke hisab se roz likes milti hain.\n"
         "│ ⌬ Zero Ban Risk: ID 100% safe rehti hai.\n"
         "│ ⌬ Fast Support: Payment ke baad turant UTR aur UID submit karein.\n"
-        "╰───────────────────────────⭔"
+        "└───────────────────────────⭔"
     )
     bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=get_main_menu(message.from_user.id))
 
@@ -112,12 +112,12 @@ def admin_dashboard(message):
     )
 
     text = (
-        "╭─ { 👑 𝑨𝑫𝑴𝑰𝑵 𝑷𝑨𝑵𝑬𝑳 } ──╮\n"
+        "┌─ { 👑 𝑨𝑫𝑴𝑰𝑵 𝑷𝑨𝑵𝑬𝑳 } ──┐\n"
         f"│ 📊 𝑻𝒐𝒕𝒂𝒍 𝑶𝒓𝒅𝒆𝒓𝒔: `{total_count}`\n"
         f"│ ⏳ 𝑷𝒆𝒏𝒅𝒊𝒏𝒈: `{pending_count}`\n"
         "│\n"
         "│ 👇 Niche diye gaye buttons se orders check karein:\n"
-        "╰───────────────────────────⭔"
+        "└───────────────────────────⭔"
     )
     bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=admin_markup)
 
@@ -143,13 +143,13 @@ def show_admin_orders_list(call):
     conn.close()
 
     if not rows:
-        bot.send_message(call.message.chat.id, f"╭─ {{ {title} }} ──╮\n│ ⌬ Koi order nahi mila!\n╰───────────────────────────⭔", parse_mode='Markdown')
+        bot.send_message(call.message.chat.id, f"┌─ {{ {title} }} ──┐\n│ ⌬ Koi order nahi mila!\n└───────────────────────────⭔", parse_mode='Markdown')
         return
 
-    list_text = f"╭─ {{ {title} }} ──╮\n"
+    list_text = f"┌─ {{ {title} }} ──┐\n"
     for r in rows:
         list_text += f"│ ⌬ ID: `{r[0]}` | User: `{r[1]}`\n│   📦 `{r[2]}`\n│   🎮 UID: `{r[3]}`\n│   📌 Status: `{r[4]}`\n│ --------------------\n"
-    list_text += "╰───────────────────────────⭔"
+    list_text += "└───────────────────────────⭔"
 
     bot.send_message(call.message.chat.id, list_text, parse_mode='Markdown')
 
@@ -181,13 +181,13 @@ def handle_plan_selection(call):
     )
 
     notice_text = (
-        "╭─ { 💳 𝑷𝑨𝒀𝑴𝑬𝑵𝑻 𝑺𝑼𝑴𝑴𝑨𝑹𝒀 } ──╮\n"
+        "┌─ { 💳 𝑷𝑨𝒀𝑴𝑬𝑵𝑻 𝑺𝑼𝑴𝑴𝑨𝑹𝒀 } ──┐\n"
         f"│ ⌬ 𝑷𝒍𝒂𝒏 : `{price_str} — {likes_str}`\n"
         "│ ⌬ 𝑷𝒂𝒚 𝑻𝒐 : `Santosh Rawat`\n"
         "│\n"
         "│ 🛡️ 100% Garena Safe Delivery\n"
         "│ 👇 Payment ke liye option select karein:\n"
-        "╰───────────────────────────⭔"
+        "└───────────────────────────⭔"
     )
     
     bot.send_message(call.message.chat.id, notice_text, parse_mode='Markdown', reply_markup=markup)
@@ -209,10 +209,10 @@ def send_qr_image(call):
         call.message.chat.id, 
         qr_url, 
         caption=(
-            "╭─ { 📷 𝑸𝑹 𝑪𝑶𝑫𝑬 𝑷𝑨𝒀𝑴𝑬𝑵𝑻 } ──╮\n"
+            "┌─ { 📷 𝑸𝑹 𝑪𝑶𝑫𝑬 𝑷𝑨𝒀𝑴𝑬𝑵𝑻 } ──┐\n"
             "│ ⌬ Scan karke exact amount pay karein.\n"
             "│ 👇 Phir niche wale button par click karein:\n"
-            "╰───────────────────────────⭔"
+            "└───────────────────────────⭔"
         ), 
         parse_mode='Markdown', 
         reply_markup=markup
@@ -231,12 +231,12 @@ def send_upi_details(call):
     markup.add(types.InlineKeyboardButton("✅ Payment Ho Gaya (Send UTR)", callback_data='send_utr_prompt'))
 
     upi_text = (
-        "╭─ { ⚡ 𝑫𝑰𝑹𝑬𝑪𝑻 𝑼𝑷𝑰 } ──╮\n"
+        "┌─ { ⚡ 𝑫𝑰𝑹𝑬𝑪𝑻 𝑼𝑷𝑰 } ──┐\n"
         "│ ⌬ 𝑼𝑷𝑰 : `santoshkumarram085-1@oksbi`\n"
         "│ ⌬ 𝑵𝒂𝒎𝒆 : `Santosh Rawat`\n"
         "│\n"
         "│ 👇 Payment karne ke baad click karein:\n"
-        "╰───────────────────────────⭔"
+        "└───────────────────────────⭔"
     )
     bot.send_message(call.message.chat.id, upi_text, parse_mode='Markdown', reply_markup=markup)
 
@@ -251,9 +251,9 @@ def prompt_utr(call):
 
     bot.send_message(
         call.message.chat.id,
-        "╭─ { 📝 𝑬𝑵𝑻𝑬𝑹 𝑼𝑻𝑹 } ──╮\n"
+        "┌─ { 📝 𝑬𝑵𝑻𝑬𝑹 𝑼𝑻𝑹 } ──┐\n"
         "│ ⌬ Kripya apne payment ka 12-digit UTR number yahan type karke bhejein:\n"
-        "╰───────────────────────────⭔",
+        "└───────────────────────────⭔",
         parse_mode='Markdown'
     )
 
@@ -278,11 +278,11 @@ def handle_messages(message):
 
         bot.send_message(
             message.chat.id,
-            "╭─ { ✅ 𝑼𝑻𝑹 𝑹𝑬𝑪𝑬𝑰𝑽𝑬𝑫 } ──╮\n"
+            "┌─ { ✅ 𝑼𝑻𝑹 𝑹𝑬𝑪𝑬𝑰𝑽𝑬𝑫 } ──┐\n"
             f"│ ⌬ 𝑼𝑻𝑹 : `{utr}`\n"
             "│\n"
             "│ 🎯 Aakhri Step: Ab apna Free Fire Game UID yahan bhejein:\n"
-            "╰───────────────────────────⭔",
+            "└───────────────────────────⭔",
             parse_mode='Markdown'
         )
 
@@ -311,13 +311,13 @@ def handle_messages(message):
 
         bot.send_message(
             message.chat.id,
-            "╭─ { 🚀 𝑶𝑹𝑫𝑬𝑹 𝑺𝑼𝑩𝑴𝑰𝑻𝑻𝑬𝑫 } ──╮\n"
+            "┌─ { 🚀 𝑶𝑹𝑫𝑬𝑹 𝑺𝑼𝑩𝑴𝑰𝑻𝑻𝑬𝑫 } ──┐\n"
             f"│ ⌬ 𝑷𝒍𝒂𝒏 : `{plan_selected}`\n"
             f"│ ⌬ 𝑼𝑰𝑫 : `{game_uid}`\n"
             f"│ ⌬ 𝑼𝑻𝑹 : `{utr}`\n"
             "│\n"
             "│ ✨ Aapka order admin ke paas bhej diya gaya hai!\n"
-            "╰───────────────────────────⭔",
+            "└───────────────────────────⭔",
             parse_mode='Markdown',
             reply_markup=get_main_menu(user_id)
         )
@@ -329,7 +329,7 @@ def handle_messages(message):
         )
 
         admin_card = (
-            "╭─ { 🔔 𝑵𝑬𝑾 𝑶𝑹𝑫𝑬𝑹 𝑨𝑳𝑬𝑹𝑻 } ──╮\n"
+            "┌─ { 🔔 𝑵𝑬𝑾 𝑶𝑹𝑫𝑬𝑹 𝑨𝑳𝑬𝑹𝑻 } ──┐\n"
             f"│ ⌬ 𝑶𝒓𝒅𝒆𝒓 𝑰𝑫 : `{order_id}`\n"
             f"│ ⌬ 𝑪𝒖𝒔𝒕𝒐𝒎𝒆𝒓 : `{username}`\n"
             f"│ ⌬ 𝑻𝒆𝒍𝒆𝒈𝒓𝒂𝒎 𝑰𝑫 : `{user_id}`\n"
@@ -338,7 +338,7 @@ def handle_messages(message):
             f"│ ⌬ 𝑼𝑻𝑹 : `{utr}`\n"
             "│\n"
             "│ 👇 Kripya verify karke decision lein:\n"
-            "╰───────────────────────────⭔"
+            "└───────────────────────────⭔"
         )
         bot.send_message(ADMIN_ID, admin_card, parse_mode='Markdown', reply_markup=admin_markup)
 
@@ -378,22 +378,22 @@ def handle_admin_verification(call):
         send_likes_markup.add(types.InlineKeyboardButton("⚡ Send Likes Now", callback_data=f"sendlikes_{game_uid}_{target_user_id}"))
 
         admin_success_card = (
-            "╭─ { ✅ 𝑶𝑹𝑫𝑬𝑹 𝑨𝑷𝑷𝑹𝑶𝑽𝑬𝑫 } ──╮\n"
+            "┌─ { ✅ 𝑶𝑹𝑫𝑬𝑹 𝑨𝑷𝑷𝑹𝑶𝑽𝑬𝑫 } ──┐\n"
             f"│ ⌬ 𝑶𝒓𝒅𝒆𝒓 𝑰𝑫 : `{order_id}`\n"
             f"│ ⌬ 𝑮𝒂𝒎𝒆 𝑼𝑰𝑫 : `{game_uid}`\n"
             "│ ⌬ Status: Payment Verified ✅\n"
             "│\n"
             "│ 👇 Ab game mein likes bhejne ke liye click karein:\n"
-            "╰───────────────────────────⭔"
+            "└───────────────────────────⭔"
         )
         bot.send_message(ADMIN_ID, admin_success_card, parse_mode='Markdown', reply_markup=send_likes_markup)
 
         bot.send_message(
             target_user_id,
-            "╭─ { 🎉 𝑷𝑨𝒀𝑴𝑬𝑵𝑻 𝑽𝑬𝑹𝑰𝑭𝑰𝑬𝑫 } ──╮\n"
+            "┌─ { 🎉 𝑷𝑨𝒀𝑴𝑬𝑵𝑻 𝑽𝑬𝑹𝑰𝑭𝑰𝑬𝑫 } ──┐\n"
             "│ ⌬ Aapka UTR verify ho gaya hai!\n"
             "│ ⌬ Likes bhejne ki process shuru ho gayi hai. 🚀\n"
-            "╰───────────────────────────⭔",
+            "└───────────────────────────⭔",
             parse_mode='Markdown'
         )
 
@@ -408,8 +408,8 @@ def handle_admin_verification(call):
             pass
 
         deployment_card = (
-            "╭─ { 🔥 𝑳𝒊𝒌𝒆𝒔 𝑫𝒆𝒑𝒍𝒐𝒚𝒆𝒅 } ──╮\n"
-            "│ Like successfully sent! ❞\n"
+            "┌─ { 🔥 𝑳𝒊𝒌𝒆𝒔 𝑫𝒆𝒑𝒍𝒐𝒚𝒆𝒅 } ──┐\n"
+            "│ ⚡ Like successfully sent! ❞\n"
             "│\n"
             "│ 👤 Player info\n"
             "│ ㉤ Name: —USER\n"
@@ -422,15 +422,15 @@ def handle_admin_verification(call):
             "│ ㉤ Likes given: `7`\n"
             "│\n"
             "│ 🖤 Thank you for using!\n"
-            "╰───────────────────────────⭔"
+            "└───────────────────────────⭔"
         )
         bot.send_message(ADMIN_ID, deployment_card, parse_mode='Markdown')
 
         bot.send_message(
             target_user_id,
-            "╭─ { ✨ 𝑳𝑰𝑲𝑬𝑺 𝑺𝑬𝑵𝑻 } ──╮\n"
+            "┌─ { ✨ 𝑳𝑰𝑲𝑬𝑺 𝑺𝑬𝑵𝑻 } ──┐\n"
             "│ 🔥 Aapke Free Fire account par likes successfully bhej diye gaye hain! ⚡\n"
-            "╰───────────────────────────⭔",
+            "└───────────────────────────⭔",
             parse_mode='Markdown'
         )
 
@@ -453,16 +453,16 @@ def handle_admin_verification(call):
 
         bot.send_message(
             ADMIN_ID,
-            f"╭─ {{ ❌ 𝑶𝑹𝑫𝑬𝑹 #{order_id} }} ──╮\n│ ⌬ Status: Payment Invalid / Rejected\n╰───────────────────────────⭔",
+            f"┌─ {{ ❌ 𝑶𝑹𝑫𝑬𝑹 #{order_id} }} ──┐\n│ ⌬ Status: Payment Invalid / Rejected\n└───────────────────────────⭔",
             parse_mode='Markdown'
         )
 
         bot.send_message(
             target_user_id,
-            "╭─ { ⚠️ 𝑽𝑬𝑹𝑰𝑭𝑰𝑪𝑨𝑻𝑰𝑶𝑵 𝑭𝑨𝑰𝑳𝑬𝑫 } ──╮\n"
+            "┌─ { ⚠️ 𝑽𝑬𝑹𝑰𝑭𝑰𝑪𝑨𝑻𝑰𝑶𝑵 𝑭𝑨𝑰𝑳𝑬𝑫 } ──┐\n"
             "│ ⌬ UTR match nahi hua ya galat hai.\n"
             "│ ⌬ Kripya dobara sahi UTR ke sath order dalein.\n"
-            "╰───────────────────────────⭔",
+            "└───────────────────────────⭔",
             parse_mode='Markdown'
         )
 
