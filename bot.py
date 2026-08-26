@@ -52,12 +52,10 @@ def safe_delete(chat_id, message_id):
     except Exception:
         pass
 
-# /start & Main Menu Handler
+# /start & Main Menu Handler (Menu button hamesha niche rahega)
 @bot.message_handler(commands=['start'])
 @bot.message_handler(func=lambda message: message.text in ["🚀 Start Bot", "💎 Buy Likes & Pricing"])
 def send_welcome(message):
-    safe_delete(message.chat.id, message.message_id)
-    
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
         types.InlineKeyboardButton("🟢 ₹5 — 40 Likes", callback_data='plan_5_40'),
@@ -77,20 +75,19 @@ def send_welcome(message):
         "━━━━━━━━━━━━━━━━━━━━━━━\n"
         "⚡ *Get fast, secure and genuine profile likes everyday.*\n\n"
         "💎 **CHOOSE YOUR PLAN BELOW:**\n"
-        "*(Bade plans par zyada likes aur bada fayda milta hai!)*"
+        "*(Bade plans par zyada likes aur bada fayda milta hai!)*\n\n"
+        "👇 *Apna pasandida plan select karne ke liye button dabayein:*"
     )
     
-    bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=get_main_menu(message.from_user.id))
-    bot.send_message(message.chat.id, "👇 *Apna pasandida plan select karne ke liye button dabayein:*", parse_mode='Markdown', reply_markup=markup)
+    bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=markup)
 
 # Help & Trust Guide
 @bot.message_handler(func=lambda message: message.text == "ℹ️ Help & Trust Guide")
 def help_info(message):
-    safe_delete(message.chat.id, message.message_id)
     text = (
         "🛡️ **TRUST & SAFETY GUIDE**\n"
         "━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "• **Garena Rules Safe:** 100 se zyada likes hone par limit ke hisab se roz likes milti hain.\n"
+        "• **Garena Rules Safe:** 100 se zyada likes hone पर limit ke hisab se roz likes milti hain.\n"
         "• **Zero Ban Risk:** ID 100% safe rehti hai.\n"
         "• **Fast Support:** Payment ke baad turant UTR aur UID submit karein."
     )
@@ -99,7 +96,6 @@ def help_info(message):
 # Admin Dashboard
 @bot.message_handler(func=lambda message: message.text == "👑 Admin Dashboard")
 def admin_dashboard(message):
-    safe_delete(message.chat.id, message.message_id)
     if message.from_user.id != ADMIN_ID:
         bot.send_message(message.chat.id, "❌ Unauthorized.", reply_markup=get_main_menu(message.from_user.id))
         return
@@ -114,14 +110,13 @@ def admin_dashboard(message):
         "👑 **ADMIN CONTROL PANEL**\n"
         "━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"📊 Total Orders: `{count}`\n\n"
-        "💻 *Command:* Type `/list` to view customer records."
+        "💻 *Command:* Type `/list` to view customer records with their Free Fire UIDs & Names."
     )
     bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=get_main_menu(message.from_user.id))
 
-# Plan Selection Handler (Checks for 100+ Likes Special Notice)
+# Plan Selection Handler
 @bot.callback_query_handler(func=lambda call: call.data.startswith('plan_'))
 def handle_plan_selection(call):
-    # format: plan_PRICE_LIKES
     parts = call.data.split('_')
     price_val = parts[1]
     likes_val = int(parts[2])
@@ -129,9 +124,12 @@ def handle_plan_selection(call):
     price_str = f"₹{price_val}"
     likes_str = f"{likes_val} Likes"
     
-    user_states[call.from_user.id] = {'state': 'waiting_for_utr', 'plan': f"{price_str} - {likes_str}"}
+    user_states[call.from_user.id] = {
+        'state': 'waiting_for_utr', 
+        'plan': f"{price_str} - {likes_str}",
+        'last_msg_id': call.message.message_id
+    }
     bot.answer_callback_query(call.id)
-    safe_delete(call.message.chat.id, call.message.message_id)
 
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
@@ -139,7 +137,6 @@ def handle_plan_selection(call):
         types.InlineKeyboardButton("📋 Copy UPI ID", callback_data='show_upi')
     )
 
-    # Agar 100 se zyada likes hain toh special safety notice dikhayega
     if likes_val > 100:
         notice_text = (
             f"📦 **ORDER SUMMARY CARD (MEGA PACK)**\n"
@@ -160,7 +157,10 @@ def handle_plan_selection(call):
             f"👇 **Payment ke liye upar diye gaye kisi ek option par click karein:**"
         )
     
-    bot.send_message(call.message.chat.id, notice_text, parse_mode='Markdown', reply_markup=markup)
+    try:
+        bot.edit_message_text(notice_text, call.message.chat.id, call.message.message_id, parse_mode='Markdown', reply_markup=markup)
+    except Exception:
+        bot.send_message(call.message.chat.id, notice_text, parse_mode='Markdown', reply_markup=markup)
 
 # Show QR Image with "Payment Ho Gaya" at bottom
 @bot.callback_query_handler(func=lambda call: call.data == 'show_qr')
@@ -173,13 +173,15 @@ def send_qr_image(call):
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("✅ Payment Ho Gaya (Send UTR)", callback_data='send_utr_prompt'))
 
-    caption = (
-        "📷 **SCAN & PAY VIA QR**\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "• Is QR code ko scan karke exact amount pay karein.\n"
-        "• Payment karne ke baad **niche diye gaye button** par click karein."
+    sent_msg = bot.send_photo(
+        call.message.chat.id, 
+        qr_url, 
+        caption="📷 **SCAN & PAY VIA QR**\n━━━━━━━━━━━━━━━━━━━━━━━\n• Is QR code ko scan karke exact amount pay karein.\n• Payment karne ke baad **niche diye gaye button** par click karein.", 
+        parse_mode='Markdown', 
+        reply_markup=markup
     )
-    bot.send_photo(call.message.chat.id, qr_url, caption=caption, parse_mode='Markdown', reply_markup=markup)
+    if call.from_user.id in user_states:
+        user_states[call.from_user.id]['active_step_msg'] = sent_msg.message_id
 
 # Show UPI Details with "Payment Ho Gaya" at bottom
 @bot.callback_query_handler(func=lambda call: call.data == 'show_upi')
@@ -198,7 +200,9 @@ def send_upi_details(call):
         "👤 **Name:** Santosh Rawat\n\n"
         "*(Payment karne ke baad niche wale button par click karein)*"
     )
-    bot.send_message(call.message.chat.id, upi_text, parse_mode='Markdown', reply_markup=markup)
+    sent_msg = bot.send_message(call.message.chat.id, upi_text, parse_mode='Markdown', reply_markup=markup)
+    if call.from_user.id in user_states:
+        user_states[call.from_user.id]['active_step_msg'] = sent_msg.message_id
 
 # Prompt for UTR
 @bot.callback_query_handler(func=lambda call: call.data == 'send_utr_prompt')
@@ -206,15 +210,17 @@ def prompt_utr(call):
     bot.answer_callback_query(call.id)
     safe_delete(call.message.chat.id, call.message.message_id)
     
-    bot.send_message(
+    sent_msg = bot.send_message(
         call.message.chat.id,
         "📝 **ENTER TRANSACTION DETAILS**\n"
         "━━━━━━━━━━━━━━━━━━━━━━━\n"
         "Kripya apne payment ka **12-digit UTR / Transaction Number** yahan chat mein type karke bhejein:",
         parse_mode='Markdown'
     )
+    if call.from_user.id in user_states:
+        user_states[call.from_user.id]['utr_prompt_msg_id'] = sent_msg.message_id
 
-# Handle Text Inputs (UTR -> UID Sequence)
+# Handle Text Inputs (UTR -> UID Sequence with proper cleanup)
 @bot.message_handler(func=lambda message: True)
 def handle_messages(message):
     user_id = message.from_user.id
@@ -223,11 +229,16 @@ def handle_messages(message):
     if isinstance(state, dict) and state.get('state') == 'waiting_for_utr':
         utr = message.text.strip()
         plan_selected = state.get('plan')
-        user_states[user_id] = {'state': 'waiting_for_uid', 'utr': utr, 'plan': plan_selected}
         
         safe_delete(message.chat.id, message.message_id)
+        if 'utr_prompt_msg_id' in state:
+            safe_delete(message.chat.id, state['utr_prompt_msg_id'])
+        if 'active_step_msg' in state:
+            safe_delete(message.chat.id, state['active_step_msg'])
 
-        bot.send_message(
+        user_states[user_id] = {'state': 'waiting_for_uid', 'utr': utr, 'plan': plan_selected}
+
+        sent_msg = bot.send_message(
             message.chat.id,
             "✅ **UTR RECEIVED SUCCESSFULLY!**\n"
             "━━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -236,22 +247,26 @@ def handle_messages(message):
             "🎯 **Aakhri Step:** Ab aap apna **Free Fire Game UID** yahan bhejein jahan likes bhejne hain:",
             parse_mode='Markdown'
         )
+        user_states[user_id]['uid_prompt_msg_id'] = sent_msg.message_id
 
     elif isinstance(state, dict) and state.get('state') == 'waiting_for_uid':
         game_uid = message.text.strip()
         utr = state.get('utr')
         plan_selected = state.get('plan')
-        username = message.from_user.username or message.from_user.first_name
+        username = message.from_user.username or message.from_user.first_name or "User"
+
+        safe_delete(message.chat.id, message.message_id)
+        if 'uid_prompt_msg_id' in state:
+            safe_delete(message.chat.id, state['uid_prompt_msg_id'])
 
         conn = sqlite3.connect('bot_database.db')
         cursor = conn.cursor()
         cursor.execute("INSERT INTO orders (user_id, username, plan_name, utr_number, game_uid, status) VALUES (?, ?, ?, ?, ?, ?)",
-                       (user_id, username, plan_selected, utr, game_uid, 'Pending'))
+                       (user_id, username, plan_selected, utr, game_uid, 'Pending Verification'))
         conn.commit()
         conn.close()
 
         user_states.pop(user_id, None)
-        safe_delete(message.chat.id, message.message_id)
 
         bot.send_message(
             message.chat.id,
@@ -267,7 +282,7 @@ def handle_messages(message):
     else:
         bot.reply_to(message, "Kripya menu ka use karein ya /start dabayein.", reply_markup=get_main_menu(user_id))
 
-# Admin List Command
+# Admin Advanced List Command (/list) - Shows Name, Username, Plan, UTR & Game UID clearly
 @bot.message_handler(commands=['list', 'export'])
 def list_orders(message):
     if message.from_user.id != ADMIN_ID:
@@ -284,9 +299,17 @@ def list_orders(message):
         bot.reply_to(message, "📂 Abhi tak koi order database mein nahi hai.", reply_markup=get_main_menu(message.from_user.id))
         return
 
-    response = "📋 **CUSTOMER ORDERS DATABASE:**\n━━━━━━━━━━━━━━━━━━━━━━━\n"
+    response = "📋 **CUSTOMER ORDERS & FREE FIRE UIDs:**\n━━━━━━━━━━━━━━━━━━━━━━━\n"
     for row in rows:
-        response += f"🔹 **ID:** {row[0]}\n👤 **User:** @{row[2]} (`{row[1]}`)\n📦 **Plan:** {row[3]}\n🔢 **UTR:** `{row[4]}`\n🆔 **UID:** `{row[5]}`\nStatus: {row[6]}\n----------------------------------\n"
+        response += (
+            f"🔹 **Order ID:** `{row[0]}`\n"
+            f"👤 **Customer:** @{row[2]} (ID: `{row[1]}`)\n"
+            f"📦 **Plan:** {row[3]}\n"
+            f"🆔 **Free Fire UID:** `{row[5]}`\n"
+            f"🔢 **UTR:** `{row[4]}`\n"
+            f"📌 **Status:** {row[6]}\n"
+            f"----------------------------------\n"
+        )
 
     if len(response) > 4000:
         for x in range(0, len(response), 4000):
