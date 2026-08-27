@@ -125,10 +125,10 @@ def show_admin_orders_list(call):
     cursor = conn.cursor()
 
     if call.data == 'admin_list_total':
-        cursor.execute("SELECT id, user_id, username, plan_name, game_uid, status FROM orders ORDER BY id DESC LIMIT 10")
+        cursor.execute("SELECT id, username, plan_name, game_uid, status FROM orders ORDER BY id DESC LIMIT 10")
         title = "📊 𝐑𝐄𝐂𝐄𝐍𝐓 𝟏𝟎 𝐎𝐑𝐃𝐄𝐑𝐒"
     else:
-        cursor.execute("SELECT id, user_id, username, plan_name, game_uid, status FROM orders WHERE status='Pending Verification' ORDER BY id DESC")
+        cursor.execute("SELECT id, username, plan_name, game_uid, status FROM orders WHERE status='Pending Verification' ORDER BY id DESC")
         title = "⏳ 𝐏𝐄𝐍𝐃𝐈𝐍𝐆 𝐎𝐑𝐃𝐄𝐑𝐒"
 
     rows = cursor.fetchall()
@@ -140,9 +140,7 @@ def show_admin_orders_list(call):
 
     list_text = f"<blockquote><b>{title}</b>\n\n"
     for r in rows:
-        # User name ko color mention format me convert kiya gaya hai
-        colored_user = f'<a href="tg://user?id={r[1]}">{r[2]}</a>'
-        list_text += f"🆔 ID: <code>{r[0]}</code> | User: {colored_user}\n📦 <code>{r[2]}</code>\n🎮 UID: <code>{r[3]}</code>\n📌 Status: <code>{r[4]}</code>\n--------------------\n"
+        list_text += f"🆔 ID: <code>{r[0]}</code> | User: <code>{r[1]}</code>\n📦 <code>{r[2]}</code>\n🎮 UID: <code>{r[3]}</code>\n📌 Status: <code>{r[4]}</code>\n--------------------\n"
     list_text += "</blockquote>"
 
     bot.send_message(call.message.chat.id, list_text, parse_mode='HTML')
@@ -163,6 +161,7 @@ def handle_plan_selection(call):
     }
     bot.answer_callback_query(call.id)
 
+    # Plans message ko yahin delete kar sakte hain ya chhod sakte hain, aapke kehne par plans message screen par rahega taaki bhatke na.
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
         types.InlineKeyboardButton("📷 View QR Code", callback_data='show_qr'),
@@ -233,6 +232,7 @@ def prompt_utr(call):
     except Exception:
         pass
 
+    # Yahan message ID save kar rahe hain taaki baad me UTR milne par ye gayb ho jaye
     msg = bot.send_message(
         call.message.chat.id,
         "<blockquote>📝 <b>𝑬𝑵𝑻𝑬𝑹 𝑼𝑻𝑹</b>\n\n"
@@ -256,11 +256,13 @@ def handle_messages(message):
         user_states[user_id]['utr'] = utr
         user_states[user_id]['state'] = 'waiting_for_uid'
 
+        # 1. User ka UTR message delete karein
         try:
             bot.delete_message(message.chat.id, message.message_id)
         except Exception:
             pass
 
+        # 2. Pichhla "ENTER UTR" wala bot ka message delete karein
         try:
             enter_utr_id = state_data.get('enter_utr_msg_id')
             if enter_utr_id:
@@ -268,6 +270,7 @@ def handle_messages(message):
         except Exception:
             pass
 
+        # UTR Received message bhejein aur uska ID save karein taaki UID milne par ye bhi gayb ho jaye
         msg = bot.send_message(
             message.chat.id,
             "<blockquote>✅ <b>𝑼𝑻𝑹 𝑹𝑬𝑪𝑬𝑰𝑽𝑬𝑫</b>\n\n"
@@ -281,13 +284,15 @@ def handle_messages(message):
         game_uid = message.text.strip()
         utr = state_data.get('utr')
         plan_selected = state_data.get('plan')
-        username = message.from_user.first_name or "User"
+        username = message.from_user.username or message.from_user.first_name or "User"
 
+        # 1. User ka UID message delete karein
         try:
             bot.delete_message(message.chat.id, message.message_id)
         except Exception:
             pass
 
+        # 2. Pichhla "UTR RECEIVED" wala bot ka message bhi delete karein
         try:
             utr_rec_id = state_data.get('utr_received_msg_id')
             if utr_rec_id:
@@ -295,6 +300,7 @@ def handle_messages(message):
         except Exception:
             pass
 
+        # Database me order save karein
         conn = sqlite3.connect('bot_database.db', check_same_thread=False)
         cursor = conn.cursor()
         cursor.execute(
@@ -307,6 +313,7 @@ def handle_messages(message):
 
         user_states.pop(user_id, None)
 
+        # Final Success Order Submitted message (Ye chat me rahega)
         bot.send_message(
             message.chat.id,
             "<blockquote>🚀 <b>𝑶𝑹𝑫𝑬𝑹 𝑺𝑼𝑩𝑴𝑰𝑻𝑻𝑬𝑫</b>\n\n"
@@ -324,13 +331,10 @@ def handle_messages(message):
             types.InlineKeyboardButton("❌ No (Reject)", callback_data=f"reject_{order_id}_{user_id}")
         )
 
-        # Admin alert me user ka naam color mention format me set kiya gaya hai
-        colored_customer = f'<a href="tg://user?id={user_id}">{username}</a>'
-
         admin_card = (
             "<blockquote>🔔 <b>𝑵𝑬𝑾 𝑶𝑹𝑫𝑬𝑹 𝑨𝑳𝑬𝑹𝑻</b>\n\n"
             f"• 𝑶𝒓𝒅𝒆𝒓 𝑰𝑫 : <code>{order_id}</code>\n"
-            f"• 𝑪𝒖𝒔𝒕𝒐𝒎𝒆𝒓 : {colored_customer}\n"
+            f"• 𝑪𝒖𝒔𝒕𝒐𝒎𝒆𝒓 : <code>{username}</code>\n"
             f"• 𝑻𝒆𝒍𝒆𝒈𝒓𝒂𝒎 𝑰𝑫 : <code>{user_id}</code>\n"
             f"• 𝑷𝒍𝒂𝒏 : <code>{plan_selected}</code>\n"
             f"• 𝑮𝒂𝒎𝒆 𝑼𝑰𝑫 : <code>{game_uid}</code>\n"
@@ -401,14 +405,11 @@ def handle_admin_verification(call):
         except Exception:
             pass
 
-        # Deployment card me bhi user ko color mention se show kiya gaya hai
-        colored_user_mention = f'<a href="tg://user?id={target_user_id}">User</a>'
-
         deployment_card = (
             "<blockquote>🔥 <b>𝑳𝒊𝒌𝒆𝒔 𝑫𝒆𝒑𝒍𝒐𝒚𝒆𝒅</b>\n\n"
             "⚡ Like successfully sent!\n\n"
             "👤 <b>Player info</b>\n"
-            f"• Name: {colored_user_mention}\n\n"
+            "• Name: <code>—USER</code>\n\n"
             "📊 <b>Like details</b>\n"
             f"• Uid: <code>{game_uid}</code>\n"
             "• Region: <code>IND</code>\n"
