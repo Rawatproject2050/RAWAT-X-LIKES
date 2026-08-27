@@ -44,14 +44,11 @@ def get_main_menu(user_id):
         )
     return markup
 
-# /start & Main Menu Handler
+# /start & Main Menu Handler (Ye message gayb nahi hoga taaki plans hamesha dikhte rahein)
 @bot.message_handler(commands=['start'])
 @bot.message_handler(func=lambda message: message.text in ["🚀 Start Bot", "💎 Buy Likes & Pricing"])
 def send_welcome(message):
-    try:
-        bot.delete_message(message.chat.id, message.message_id)
-    except Exception:
-        pass
+    # Yahan delete_message nahi hai taaki /start aur plans message screen par bana rahe
 
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
@@ -129,7 +126,7 @@ def show_admin_orders_list(call):
 
     if call.data == 'admin_list_total':
         cursor.execute("SELECT id, username, plan_name, game_uid, status FROM orders ORDER BY id DESC LIMIT 10")
-        title = "📊 𝐑𝐄𝐂𝐄𝐍𝐓 𝐓𝐎 𝐎𝐑𝐃𝐄𝐑𝐒"
+        title = "📊 𝐑𝐄𝐂𝐄𝐍𝐓 𝟏𝟎 𝐎𝐑𝐃𝐄𝐑𝐒"
     else:
         cursor.execute("SELECT id, username, plan_name, game_uid, status FROM orders WHERE status='Pending Verification' ORDER BY id DESC")
         title = "⏳ 𝐏𝐄𝐍𝐃𝐈𝐍𝐆 𝐎𝐑𝐃𝐄𝐑𝐒"
@@ -164,11 +161,7 @@ def handle_plan_selection(call):
     }
     bot.answer_callback_query(call.id)
 
-    try:
-        bot.delete_message(call.message.chat.id, call.message.message_id)
-    except Exception:
-        pass
-
+    # Plans message ko yahin delete kar sakte hain ya chhod sakte hain, aapke kehne par plans message screen par rahega taaki bhatke na.
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
         types.InlineKeyboardButton("📷 View QR Code", callback_data='show_qr'),
@@ -239,51 +232,75 @@ def prompt_utr(call):
     except Exception:
         pass
 
-    bot.send_message(
+    # Yahan message ID save kar rahe hain taaki baad me UTR milne par ye gayb ho jaye
+    msg = bot.send_message(
         call.message.chat.id,
         "<blockquote>📝 <b>𝑬𝑵𝑻𝑬𝑹 𝑼𝑻𝑹</b>\n\n"
         "Kripya apne payment ka 12-digit UTR number yahan type karke bhejein:</blockquote>",
         parse_mode='HTML'
     )
+    user_states[call.message.chat.id] = user_states.get(call.message.chat.id, {})
+    user_states[call.message.chat.id]['enter_utr_msg_id'] = msg.message_id
 
-# Handle Text Inputs (UTR -> UID Sequence)
+# Handle Text Inputs (UTR -> UID Sequence with Auto-Deletion of intermediate steps)
 @bot.message_handler(func=lambda message: True)
 def handle_messages(message):
     if message.from_user.id == ADMIN_ID and message.text in ["👑 Admin Dashboard"]:
         return
 
     user_id = message.from_user.id
-    state = user_states.get(user_id)
+    state_data = user_states.get(user_id)
 
-    if isinstance(state, dict) and state.get('state') == 'waiting_for_utr':
+    if isinstance(state_data, dict) and state_data.get('state') == 'waiting_for_utr':
         utr = message.text.strip()
         user_states[user_id]['utr'] = utr
         user_states[user_id]['state'] = 'waiting_for_uid'
 
+        # 1. User ka UTR message delete karein
         try:
             bot.delete_message(message.chat.id, message.message_id)
         except Exception:
             pass
 
-        bot.send_message(
+        # 2. Pichhla "ENTER UTR" wala bot ka message delete karein
+        try:
+            enter_utr_id = state_data.get('enter_utr_msg_id')
+            if enter_utr_id:
+                bot.delete_message(message.chat.id, enter_utr_id)
+        except Exception:
+            pass
+
+        # UTR Received message bhejein aur uska ID save karein taaki UID milne par ye bhi gayb ho jaye
+        msg = bot.send_message(
             message.chat.id,
             "<blockquote>✅ <b>𝑼𝑻𝑹 𝑹𝑬𝑪𝑬𝑰𝑽𝑬𝑫</b>\n\n"
             f"• 𝑼𝑻𝑹 : <code>{utr}</code>\n\n"
             "🎯 Aakhri Step: Ab apna Free Fire Game UID yahan bhejein:</blockquote>",
             parse_mode='HTML'
         )
+        user_states[user_id]['utr_received_msg_id'] = msg.message_id
 
-    elif isinstance(state, dict) and state.get('state') == 'waiting_for_uid':
+    elif isinstance(state_data, dict) and state_data.get('state') == 'waiting_for_uid':
         game_uid = message.text.strip()
-        utr = state.get('utr')
-        plan_selected = state.get('plan')
+        utr = state_data.get('utr')
+        plan_selected = state_data.get('plan')
         username = message.from_user.username or message.from_user.first_name or "User"
 
+        # 1. User ka UID message delete karein
         try:
             bot.delete_message(message.chat.id, message.message_id)
         except Exception:
             pass
 
+        # 2. Pichhla "UTR RECEIVED" wala bot ka message bhi delete karein
+        try:
+            utr_rec_id = state_data.get('utr_received_msg_id')
+            if utr_rec_id:
+                bot.delete_message(message.chat.id, utr_rec_id)
+        except Exception:
+            pass
+
+        # Database me order save karein
         conn = sqlite3.connect('bot_database.db', check_same_thread=False)
         cursor = conn.cursor()
         cursor.execute(
@@ -296,6 +313,7 @@ def handle_messages(message):
 
         user_states.pop(user_id, None)
 
+        # Final Success Order Submitted message (Ye chat me rahega)
         bot.send_message(
             message.chat.id,
             "<blockquote>🚀 <b>𝑶𝑹𝑫𝑬𝑹 𝑺𝑼𝑩𝑴𝑰𝑻𝑻𝑬𝑫</b>\n\n"
