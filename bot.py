@@ -44,7 +44,7 @@ def get_main_menu(user_id):
         )
     return markup
 
-# /start & Main Menu Handler (Ye message gayb nahi hoga)
+# /start & Main Menu Handler (Ye message gayb nahi hoga taaki plans hamesha dikhte rahein)
 @bot.message_handler(commands=['start'])
 @bot.message_handler(func=lambda message: message.text in ["🚀 Start Bot", "💎 Buy Likes & Pricing"])
 def send_welcome(message):
@@ -266,11 +266,11 @@ def handle_messages(message):
         except Exception:
             pass
 
-        # UTR Received message bhejein with mention and save its ID
+        # UTR Received message bhejein aur uska ID save karein taaki UID milne par ye bhi gayb ho jaye
         msg = bot.reply_to(
             message,
             "<blockquote>✅ <b>𝑼𝑻𝑹 𝑹𝑬𝑪𝑬𝑰𝑽𝑬𝑫</b>\n\n"
-            f"• 𝑼𝑻𝑹 : <code>{utr}</code>\n\n"
+            f"• 𝑼𝑷𝑹 : <code>{utr}</code>\n\n"
             "🎯 Aakhri Step: Ab apna Free Fire Game UID yahan bhejein:</blockquote>",
             parse_mode='HTML'
         )
@@ -309,7 +309,7 @@ def handle_messages(message):
 
         user_states.pop(user_id, None)
 
-        # Final Success Order Submitted message with mention
+        # Final Success Order Submitted message (Ye chat me rahega)
         bot.reply_to(
             message,
             "<blockquote>🚀 <b>𝑶𝑹𝑫𝑬𝑹 𝑺𝑼𝑩𝑴𝑰𝑻𝑻𝑬𝑫</b>\n\n"
