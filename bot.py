@@ -44,12 +44,10 @@ def get_main_menu(user_id):
         )
     return markup
 
-# /start & Main Menu Handler (Ye message gayb nahi hoga taaki plans hamesha dikhte rahein)
+# /start & Main Menu Handler (Ye message gayb nahi hoga)
 @bot.message_handler(commands=['start'])
 @bot.message_handler(func=lambda message: message.text in ["🚀 Start Bot", "💎 Buy Likes & Pricing"])
 def send_welcome(message):
-    # Yahan delete_message nahi hai taaki /start aur plans message screen par bana rahe
-
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
         types.InlineKeyboardButton("🟢 ₹5 — 40 Likes", callback_data='plan_5_40'),
@@ -72,7 +70,7 @@ def send_welcome(message):
         "👇 Apna pasandida plan select karein:</blockquote>"
     )
     
-    bot.send_message(message.chat.id, text, parse_mode='HTML', reply_markup=markup)
+    bot.reply_to(message, text, parse_mode='HTML', reply_markup=markup)
 
 # Help & Trust Guide
 @bot.message_handler(func=lambda message: message.text == "ℹ️ Help & Trust Guide")
@@ -83,7 +81,7 @@ def help_info(message):
         "• Zero Ban Risk: ID 100% safe rehti hai.\n"
         "• Fast Support: Payment ke baad turant UTR aur UID submit karein.</blockquote>"
     )
-    bot.send_message(message.chat.id, text, parse_mode='HTML', reply_markup=get_main_menu(message.from_user.id))
+    bot.reply_to(message, text, parse_mode='HTML', reply_markup=get_main_menu(message.from_user.id))
 
 # Admin Dashboard
 @bot.message_handler(func=lambda message: message.text == "👑 Admin Dashboard")
@@ -111,7 +109,7 @@ def admin_dashboard(message):
         f"⏳ 𝑷𝒆𝒏𝒅𝒊𝒏𝒈: <code>{pending_count}</code>\n\n"
         "👇 Niche diye gaye buttons se orders check karein:</blockquote>"
     )
-    bot.send_message(message.chat.id, text, parse_mode='HTML', reply_markup=admin_markup)
+    bot.reply_to(message, text, parse_mode='HTML', reply_markup=admin_markup)
 
 # Admin List View Handler
 @bot.callback_query_handler(func=lambda call: call.data in ['admin_list_total', 'admin_list_pending'])
@@ -161,7 +159,6 @@ def handle_plan_selection(call):
     }
     bot.answer_callback_query(call.id)
 
-    # Plans message ko yahin delete kar sakte hain ya chhod sakte hain, aapke kehne par plans message screen par rahega taaki bhatke na.
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
         types.InlineKeyboardButton("📷 View QR Code", callback_data='show_qr'),
@@ -176,7 +173,7 @@ def handle_plan_selection(call):
         "👇 Payment ke liye option select karein:</blockquote>"
     )
     
-    bot.send_message(call.message.chat.id, notice_text, parse_mode='HTML', reply_markup=markup)
+    bot.reply_to(call.message, notice_text, parse_mode='HTML', reply_markup=markup)
 
 # Show QR Image
 @bot.callback_query_handler(func=lambda call: call.data == 'show_qr')
@@ -221,7 +218,7 @@ def send_upi_details(call):
         "• 𝑵𝒂𝒎𝒆 : <code>Santosh Rawat</code>\n\n"
         "👇 Payment karne ke baad click karein:</blockquote>"
     )
-    bot.send_message(call.message.chat.id, upi_text, parse_mode='HTML', reply_markup=markup)
+    bot.reply_to(call.message, upi_text, parse_mode='HTML', reply_markup=markup)
 
 # Prompt for UTR
 @bot.callback_query_handler(func=lambda call: call.data == 'send_utr_prompt')
@@ -232,9 +229,8 @@ def prompt_utr(call):
     except Exception:
         pass
 
-    # Yahan message ID save kar rahe hain taaki baad me UTR milne par ye gayb ho jaye
-    msg = bot.send_message(
-        call.message.chat.id,
+    msg = bot.reply_to(
+        call.message,
         "<blockquote>📝 <b>𝑬𝑵𝑻𝑬𝑹 𝑼𝑻𝑹</b>\n\n"
         "Kripya apne payment ka 12-digit UTR number yahan type karke bhejein:</blockquote>",
         parse_mode='HTML'
@@ -270,9 +266,9 @@ def handle_messages(message):
         except Exception:
             pass
 
-        # UTR Received message bhejein aur uska ID save karein taaki UID milne par ye bhi gayb ho jaye
-        msg = bot.send_message(
-            message.chat.id,
+        # UTR Received message bhejein with mention and save its ID
+        msg = bot.reply_to(
+            message,
             "<blockquote>✅ <b>𝑼𝑻𝑹 𝑹𝑬𝑪𝑬𝑰𝑽𝑬𝑫</b>\n\n"
             f"• 𝑼𝑻𝑹 : <code>{utr}</code>\n\n"
             "🎯 Aakhri Step: Ab apna Free Fire Game UID yahan bhejein:</blockquote>",
@@ -313,9 +309,9 @@ def handle_messages(message):
 
         user_states.pop(user_id, None)
 
-        # Final Success Order Submitted message (Ye chat me rahega)
-        bot.send_message(
-            message.chat.id,
+        # Final Success Order Submitted message with mention
+        bot.reply_to(
+            message,
             "<blockquote>🚀 <b>𝑶𝑹𝑫𝑬𝑹 𝑺𝑼𝑩𝑴𝑰𝑻𝑻𝑬𝑫</b>\n\n"
             f"• 𝑷𝒍𝒂𝒏 : <code>{plan_selected}</code>\n"
             f"• 𝑼𝑰𝑫 : <code>{game_uid}</code>\n"
