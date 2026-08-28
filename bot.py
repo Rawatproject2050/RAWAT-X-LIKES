@@ -185,8 +185,11 @@ def send_qr_image(call):
         pass
 
     qr_url = "https://i.postimg.cc/kGQwSRy4/QR-Code.png"
-    markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("✅ Payment Ho Gaya (Send UTR)", callback_data='send_utr_prompt'))
+    markup = types.InlineKeyboardMarkup(row_width=1)
+    markup.add(
+        types.InlineKeyboardButton("✅ Payment Ho Gaya (Send UTR)", callback_data='send_utr_prompt'),
+        types.InlineKeyboardButton("📸 Sent Payment Screenshot", callback_data='send_screenshot_prompt')
+    )
 
     bot.send_photo(
         call.message.chat.id, 
@@ -209,8 +212,11 @@ def send_upi_details(call):
     except Exception:
         pass
     
-    markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("✅ Payment Ho Gaya (Send UTR)", callback_data='send_utr_prompt'))
+    markup = types.InlineKeyboardMarkup(row_width=1)
+    markup.add(
+        types.InlineKeyboardButton("✅ Payment Ho Gaya (Send UTR)", callback_data='send_utr_prompt'),
+        types.InlineKeyboardButton("📸 Sent Payment Screenshot", callback_data='send_screenshot_prompt')
+    )
 
     upi_text = (
         "<blockquote>⚡ <b>𝑫𝑰𝑹𝑬𝑪𝑻 𝑼𝑷𝑰</b>\n\n"
@@ -238,28 +244,45 @@ def prompt_utr(call):
     user_states[call.message.chat.id] = user_states.get(call.message.chat.id, {})
     user_states[call.message.chat.id]['enter_utr_msg_id'] = msg.message_id
 
-# Handle Text Inputs (UTR, UID & Admin Custom Message sequence)
-@bot.message_handler(func=lambda message: True)
+# Prompt for Payment Screenshot
+@bot.callback_query_handler(func=lambda call: call.data == 'send_screenshot_prompt')
+def prompt_screenshot(call):
+    bot.answer_callback_query(call.id)
+    try:
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+    except Exception:
+        pass
+
+    msg = bot.send_message(
+        call.message.chat.id,
+        "<blockquote>📸 <b>𝑺𝑬𝑵𝑫 𝑷𝑨𝒀𝑴𝑬𝑵𝑻 𝑺𝑪𝑹𝑬𝑬𝑵𝑺𝑯𝑶𝑻</b>\n\n"
+        "Kripya apne payment ka successful screenshot yahan bhejein:</blockquote>",
+        parse_mode='HTML'
+    )
+    user_states[call.message.chat.id] = user_states.get(call.message.chat.id, {})
+    user_states[call.message.chat.id]['state'] = 'waiting_for_screenshot'
+    user_states[call.message.chat.id]['screenshot_msg_id'] = msg.message_id
+
+# Handle Text Inputs & Photo Inputs (UTR, UID, Screenshot & Admin Custom Message sequence)
+@bot.message_handler(content_types=['text', 'photo'])
 def handle_messages(message):
     user_id = message.from_user.id
     state_data = user_states.get(user_id)
 
     # 1. Admin Custom Message Handler Check
-    if user_id == ADMIN_ID and isinstance(state_data, dict) and state_data.get('state') == 'waiting_for_custom_message':
+    if user_id == ADMIN_ID and isinstance(state_data, dict) and state_data.get('state') == 'waiting_for_custom_message' and message.text:
         target_user_id = state_data.get('target_user')
         game_uid = state_data.get('game_uid')
         custom_text = message.text
 
         user_states.pop(ADMIN_ID, None)
 
-        # User ko custom message bhejein
         bot.send_message(
             target_user_id,
             f"<blockquote>✨ <b>𝑨𝑫𝑴𝑰𝑵 𝑴𝑬𝑺𝑺𝑨𝑮𝑬</b>\n\n{custom_text}</blockquote>",
             parse_mode='HTML'
         )
 
-        # Admin ko confirmation bhejein
         bot.reply_to(
             message,
             f"<blockquote>✅ <b>Custom message successfully sent!</b>\n\n• UID: <code>{game_uid}</code></blockquote>",
@@ -270,7 +293,37 @@ def handle_messages(message):
     if message.from_user.id == ADMIN_ID and message.text in ["👑 Admin Dashboard"]:
         return
 
-    if isinstance(state_data, dict) and state_data.get('state') == 'waiting_for_utr':
+    # Handle Screenshot Input
+    if isinstance(state_data, dict) and state_data.get('state') == 'waiting_for_screenshot':
+        if message.photo:
+            file_id = message.photo[-1].file_id
+            user_states[user_id]['screenshot_file_id'] = file_id
+            user_states[user_id]['state'] = 'waiting_for_uid'
+
+            try:
+                bot.delete_message(message.chat.id, message.message_id)
+            except Exception:
+                pass
+
+            try:
+                scr_msg_id = state_data.get('screenshot_msg_id')
+                if scr_msg_id:
+                    bot.delete_message(message.chat.id, scr_msg_id)
+            except Exception:
+                pass
+
+            msg = bot.send_message(
+                message.chat.id,
+                "<blockquote>✅ <b>𝑺𝑪𝑹𝑬𝑬𝑵𝑺𝑯𝑶𝑻 𝑹𝑬𝑪𝑬𝑰𝑽𝑬𝑫</b>\n\n"
+                "🎯 Aakhri Step: Ab apna Free Fire Game UID yahan bhejein:</blockquote>",
+                parse_mode='HTML'
+            )
+            user_states[user_id]['uid_received_msg_id'] = msg.message_id
+        else:
+            bot.reply_to(message, "Kripya payment ka screenshot photo hi bhejein!")
+        return
+
+    if isinstance(state_data, dict) and state_data.get('state') == 'waiting_for_utr' and message.text:
         utr = message.text.strip()
         user_states[user_id]['utr'] = utr
         user_states[user_id]['state'] = 'waiting_for_uid'
@@ -296,9 +349,10 @@ def handle_messages(message):
         )
         user_states[user_id]['utr_received_msg_id'] = msg.message_id
 
-    elif isinstance(state_data, dict) and state_data.get('state') == 'waiting_for_uid':
+    elif isinstance(state_data, dict) and state_data.get('state') == 'waiting_for_uid' and message.text:
         game_uid = message.text.strip()
-        utr = state_data.get('utr')
+        utr = state_data.get('utr', 'Screenshot Attached')
+        screenshot_file_id = state_data.get('screenshot_file_id')
         plan_selected = state_data.get('plan')
         username = message.from_user.username or message.from_user.first_name or "User"
 
@@ -308,7 +362,7 @@ def handle_messages(message):
             pass
 
         try:
-            utr_rec_id = state_data.get('utr_received_msg_id')
+            utr_rec_id = state_data.get('utr_received_msg_id') or state_data.get('uid_received_msg_id')
             if utr_rec_id:
                 bot.delete_message(message.chat.id, utr_rec_id)
         except Exception:
@@ -331,7 +385,7 @@ def handle_messages(message):
             "<blockquote>🚀 <b>𝑶𝑹𝑫𝑬𝑹 𝑺𝑼𝑩𝑴𝑰𝑻𝑻𝑬𝑫</b>\n\n"
             f"• 𝑷𝒍𝒂𝒏 : <code>{plan_selected}</code>\n"
             f"• 𝑼𝑰𝑫 : <code>{game_uid}</code>\n"
-            f"• 𝑼𝑻𝑹 : <code>{utr}</code>\n\n"
+            f"• 𝑷𝒂𝒚𝒎𝒆𝒏𝒕 : <code>{utr}</code>\n\n"
             "✨ Aapka order admin ke paas bhej diya gaya hai!</blockquote>",
             parse_mode='HTML',
             reply_markup=get_main_menu(user_id)
@@ -350,10 +404,14 @@ def handle_messages(message):
             f"• 𝑻𝒆𝒍𝒆𝒈𝒓𝒂𝒎 𝑰𝑫 : <code>{user_id}</code>\n"
             f"• 𝑷𝒍𝒂𝒏 : <code>{plan_selected}</code>\n"
             f"• 𝑮𝒂𝒎𝒆 𝑼𝑰𝑫 : <code>{game_uid}</code>\n"
-            f"• 𝑼𝑻𝑹 : <code>{utr}</code>\n\n"
+            f"• 𝑷𝒂𝒚𝒎𝒆𝒏𝒕 : <code>{utr}</code>\n\n"
             "👇 Kripya verify karke decision lein:</blockquote>"
         )
-        bot.send_message(ADMIN_ID, admin_card, parse_mode='HTML', reply_markup=admin_markup)
+        
+        if screenshot_file_id:
+            bot.send_photo(ADMIN_ID, screenshot_file_id, caption=admin_card, parse_mode='HTML', reply_markup=admin_markup)
+        else:
+            bot.send_message(ADMIN_ID, admin_card, parse_mode='HTML', reply_markup=admin_markup)
 
     else:
         if message.from_user.id != ADMIN_ID:
@@ -402,7 +460,7 @@ def handle_admin_verification(call):
         bot.send_message(
             target_user_id,
             "<blockquote>🎉 <b>𝑷𝑨𝒀𝑴𝑬𝑵𝑻 𝑽𝑬𝑹𝑰𝑭𝑰𝑬𝑫</b>\n\n"
-            "• Aapka UTR verify ho gaya hai!\n"
+            "• Aapka payment verify ho gaya hai!\n"
             "• Admin ki taraf se message ka intezaar karein. 🚀</blockquote>",
             parse_mode='HTML'
         )
@@ -413,11 +471,10 @@ def handle_admin_verification(call):
 
         bot.answer_callback_query(call.id, "Custom message mode activated!")
         try:
-            (call.message.chat.id, call.message.message_id)
+            bot.delete_message(call.message.chat.id, call.message.message_id)
         except Exception:
             pass
 
-        # Admin state set ki gayi hai taaki agla message custom text read ho
         user_states[ADMIN_ID] = {
             'state': 'waiting_for_custom_message',
             'target_user': target_user_id,
@@ -459,8 +516,8 @@ def handle_admin_verification(call):
         bot.send_message(
             target_user_id,
             "<blockquote>⚠️ <b>𝑽𝑬𝑹𝑰𝑭𝑰𝑪𝑨𝑻𝑰𝑶𝑵 𝑭𝑨𝑰𝑳𝑬𝑫</b>\n\n"
-            "• UTR match nahi hua ya galat hai.\n"
-            "• Kripya dobara sahi UTR ke sath order dalein.</blockquote>",
+            "• Payment match nahi hua ya galat hai.\n"
+            "• Kripya dobara sahi details ke sath order dalein.</blockquote>",
             parse_mode='HTML'
         )
 
