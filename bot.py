@@ -290,7 +290,7 @@ def retry_payment_handler(call):
     )
     bot.send_message(
         call.message.chat.id,
-        "<blockquote>🔄 <b>RE-SUBMIT ORDER</b>\n\nNaya plan select karke apna sahi UTR ya Screenshot dobara bhejein:</blockquote>",
+        "<blockquote>🔄 <b>RE-SUBMIT ORDER</b>\n\nPahle Wala plan select karke apna sahi UTR ya Screenshot dobara bhejein:</blockquote>",
         parse_mode='HTML',
         reply_markup=markup
     )
