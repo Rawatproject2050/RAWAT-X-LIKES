@@ -48,8 +48,6 @@ def get_main_menu(user_id):
 @bot.message_handler(commands=['start'])
 @bot.message_handler(func=lambda message: message.text in ["🚀 Start Bot", "💎 Buy Likes & Pricing"])
 def send_welcome(message):
-    # Yahan delete_message nahi hai taaki /start aur plans message screen par bana rahe
-
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
         types.InlineKeyboardButton("🟢 ₹5 — 40 Likes", callback_data='plan_5_40'),
@@ -161,7 +159,6 @@ def handle_plan_selection(call):
     }
     bot.answer_callback_query(call.id)
 
-    # Plans message ko yahin delete kar sakte hain ya chhod sakte hain, aapke kehne par plans message screen par rahega taaki bhatke na.
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
         types.InlineKeyboardButton("📷 View QR Code", callback_data='show_qr'),
@@ -232,7 +229,6 @@ def prompt_utr(call):
     except Exception:
         pass
 
-    # Yahan message ID save kar rahe hain taaki baad me UTR milne par ye gayb ho jaye
     msg = bot.send_message(
         call.message.chat.id,
         "<blockquote>📝 <b>𝑬𝑵𝑻𝑬𝑹 𝑼𝑻𝑹</b>\n\n"
@@ -242,27 +238,48 @@ def prompt_utr(call):
     user_states[call.message.chat.id] = user_states.get(call.message.chat.id, {})
     user_states[call.message.chat.id]['enter_utr_msg_id'] = msg.message_id
 
-# Handle Text Inputs (UTR -> UID Sequence with Auto-Deletion of intermediate steps)
+# Handle Text Inputs (UTR, UID & Admin Custom Message sequence)
 @bot.message_handler(func=lambda message: True)
 def handle_messages(message):
-    if message.from_user.id == ADMIN_ID and message.text in ["👑 Admin Dashboard"]:
-        return
-
     user_id = message.from_user.id
     state_data = user_states.get(user_id)
+
+    # 1. Admin Custom Message Handler Check
+    if user_id == ADMIN_ID and isinstance(state_data, dict) and state_data.get('state') == 'waiting_for_custom_message':
+        target_user_id = state_data.get('target_user')
+        game_uid = state_data.get('game_uid')
+        custom_text = message.text
+
+        user_states.pop(ADMIN_ID, None)
+
+        # User ko custom message bhejein
+        bot.send_message(
+            target_user_id,
+            f"<blockquote>✨ <b>𝑨𝑫𝑴𝑰𝑵 𝑴𝑬𝑺𝑺𝑨𝑮𝑬</b>\n\n{custom_text}</blockquote>",
+            parse_mode='HTML'
+        )
+
+        # Admin ko confirmation bhejein
+        bot.reply_to(
+            message,
+            f"<blockquote>✅ <b>Custom message successfully sent!</b>\n\n• UID: <code>{game_uid}</code></blockquote>",
+            parse_mode='HTML'
+        )
+        return
+
+    if message.from_user.id == ADMIN_ID and message.text in ["👑 Admin Dashboard"]:
+        return
 
     if isinstance(state_data, dict) and state_data.get('state') == 'waiting_for_utr':
         utr = message.text.strip()
         user_states[user_id]['utr'] = utr
         user_states[user_id]['state'] = 'waiting_for_uid'
 
-        # 1. User ka UTR message delete karein
         try:
             bot.delete_message(message.chat.id, message.message_id)
         except Exception:
             pass
 
-        # 2. Pichhla "ENTER UTR" wala bot ka message delete karein
         try:
             enter_utr_id = state_data.get('enter_utr_msg_id')
             if enter_utr_id:
@@ -270,7 +287,6 @@ def handle_messages(message):
         except Exception:
             pass
 
-        # UTR Received message bhejein aur uska ID save karein taaki UID milne par ye bhi gayb ho jaye
         msg = bot.send_message(
             message.chat.id,
             "<blockquote>✅ <b>𝑼𝑻𝑹 𝑹𝑬𝑪𝑬𝑰𝑽𝑬𝑫</b>\n\n"
@@ -286,13 +302,11 @@ def handle_messages(message):
         plan_selected = state_data.get('plan')
         username = message.from_user.username or message.from_user.first_name or "User"
 
-        # 1. User ka UID message delete karein
         try:
             bot.delete_message(message.chat.id, message.message_id)
         except Exception:
             pass
 
-        # 2. Pichhla "UTR RECEIVED" wala bot ka message bhi delete karein
         try:
             utr_rec_id = state_data.get('utr_received_msg_id')
             if utr_rec_id:
@@ -300,7 +314,6 @@ def handle_messages(message):
         except Exception:
             pass
 
-        # Database me order save karein
         conn = sqlite3.connect('bot_database.db', check_same_thread=False)
         cursor = conn.cursor()
         cursor.execute(
@@ -313,7 +326,6 @@ def handle_messages(message):
 
         user_states.pop(user_id, None)
 
-        # Final Success Order Submitted message (Ye chat me rahega)
         bot.send_message(
             message.chat.id,
             "<blockquote>🚀 <b>𝑶𝑹𝑫𝑬𝑹 𝑺𝑼𝑩𝑴𝑰𝑻𝑻𝑬𝑫</b>\n\n"
@@ -347,7 +359,7 @@ def handle_messages(message):
         if message.from_user.id != ADMIN_ID:
             bot.reply_to(message, "Kripya menu ka use karein ya /start dabayein.", reply_markup=get_main_menu(user_id))
 
-# Admin Approval / Rejection Handler with "Send Likes Now" Feature
+# Admin Approval / Rejection & Custom Message Trigger Handler
 @bot.callback_query_handler(func=lambda call: call.data.startswith('approve_') or call.data.startswith('reject_') or call.data.startswith('sendlikes_'))
 def handle_admin_verification(call):
     if call.from_user.id != ADMIN_ID:
@@ -383,7 +395,7 @@ def handle_admin_verification(call):
             f"• 𝑶𝒓𝒅𝒆𝒓 𝑰𝑫 : <code>{order_id}</code>\n"
             f"• 𝑮𝒂𝒎𝒆 𝑼𝑰𝑫 : <code>{game_uid}</code>\n"
             "• Status: Payment Verified ✅\n\n"
-            "👇 Ab game mein likes bhejne ke liye click karein:</blockquote>"
+            "👇 Ab game mein likes bhejne aur custom message bhejne ke liye click karein:</blockquote>"
         )
         bot.send_message(ADMIN_ID, admin_success_card, parse_mode='HTML', reply_markup=send_likes_markup)
 
@@ -391,7 +403,7 @@ def handle_admin_verification(call):
             target_user_id,
             "<blockquote>🎉 <b>𝑷𝑨𝒀𝑴𝑬𝑵𝑻 𝑽𝑬𝑹𝑰𝑭𝑰𝑬𝑫</b>\n\n"
             "• Aapka UTR verify ho gaya hai!\n"
-            "• Likes bhejne ki process shuru ho gayi hai. 🚀</blockquote>",
+            "• Admin ki taraf se message ka intezaar karein. 🚀</blockquote>",
             parse_mode='HTML'
         )
 
@@ -399,31 +411,25 @@ def handle_admin_verification(call):
         game_uid = parts[1]
         target_user_id = int(parts[2])
 
-        bot.answer_callback_query(call.id, "Likes Deployment Started!")
+        bot.answer_callback_query(call.id, "Custom message mode activated!")
         try:
             bot.delete_message(call.message.chat.id, call.message.message_id)
         except Exception:
             pass
 
-        deployment_card = (
-            "<blockquote>🔥 <b>𝑳𝒊𝒌𝒆𝒔 𝑫𝒆𝒑𝒍𝒐𝒚𝒆𝒅</b>\n\n"
-            "⚡ Like successfully sent!\n\n"
-            "👤 <b>Player info</b>\n"
-            "• Name: <code>—USER</code>\n\n"
-            "📊 <b>Like details</b>\n"
-            f"• Uid: <code>{game_uid}</code>\n"
-            "• Region: <code>IND</code>\n"
-            "• Likes before: <code>5850</code>\n"
-            "• Likes after: <code>5857</code>\n"
-            "• Likes given: <code>7</code>\n\n"
-            "🖤 Thank you for using!</blockquote>"
-        )
-        bot.send_message(ADMIN_ID, deployment_card, parse_mode='HTML')
+        # Admin state set ki gayi hai taaki agla message custom text read ho
+        user_states[ADMIN_ID] = {
+            'state': 'waiting_for_custom_message',
+            'target_user': target_user_id,
+            'game_uid': game_uid
+        }
 
         bot.send_message(
-            target_user_id,
-            "<blockquote>✨ <b>𝑳𝑰𝑲𝑬𝑺 𝑺𝑬𝑵𝑻</b>\n\n"
-            "🔥 Aapke Free Fire account par likes successfully bhej diye gaye hain! ⚡</blockquote>",
+            ADMIN_ID,
+            "<blockquote>✍️ <b>𝗖𝗨𝗦𝗧𝗢𝗠 𝗠𝗘𝗦𝗦𝗔𝗚𝗘 𝗟𝗜𝗞𝗛𝗘𝗜𝗡</b>\n\n"
+            f"• Target User ID: <code>{target_user_id}</code>\n"
+            f"• Game UID: <code>{game_uid}</code>\n\n"
+            "👇 Ab aap jo bhi message yahan type karke bhejoge, woh seedha is user ke paas chala jayega:</blockquote>",
             parse_mode='HTML'
         )
 
