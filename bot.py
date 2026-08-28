@@ -70,7 +70,7 @@ def send_welcome(message):
         "👇 Apna pasandida plan select karein:</blockquote>"
     )
     
-    bot.send_message(message.chat.id, text, parse_mode='HTML', reply_markup=get_main_menu(message.chat.id))
+    bot.send_message(message.chat.id, text, parse_mode='HTML', reply_markup=markup)
 
 # Help & Trust Guide
 @bot.message_handler(func=lambda message: message.text == "ℹ️ Help & Trust Guide")
@@ -101,8 +101,8 @@ def admin_dashboard(message):
     admin_markup.add(
         types.InlineKeyboardButton(f"📊 View All Orders List ({total_count})", callback_data='admin_list_total'),
         types.InlineKeyboardButton(f"⏳ View Pending List ({pending_count})", callback_data='admin_list_pending'),
-        types.InlineKeyboardButton("🗑️ Clear All Orders Data", callback_data='admin_clear_all'),
-        types.InlineKeyboardButton("📥 Download Backup DB", callback_data='admin_download_db')
+        types.InlineKeyboardButton("📊 View Approved Orders", callback_data='admin_list_approved'),
+        types.InlineKeyboardButton("❌ View Rejected Orders", callback_data='admin_list_rejected')
     )
 
     text = (
@@ -113,45 +113,29 @@ def admin_dashboard(message):
     )
     bot.send_message(message.chat.id, text, parse_mode='HTML', reply_markup=admin_markup)
 
-# Admin List & Actions View Handler
-@bot.callback_query_handler(func=lambda call: call.data in ['admin_list_total', 'admin_list_pending', 'admin_clear_all', 'admin_download_db'])
+# Admin List View Handler
+@bot.callback_query_handler(func=lambda call: call.data in ['admin_list_total', 'admin_list_pending', 'admin_list_approved', 'admin_list_rejected'])
 def show_admin_orders_list(call):
     if call.from_user.id != ADMIN_ID:
         bot.answer_callback_query(call.id, "❌ Unauthorized!", show_alert=True)
         return
 
+    bot.answer_callback_query(call.id)
     conn = sqlite3.connect('bot_database.db', check_same_thread=False)
     cursor = conn.cursor()
 
-    if call.data == 'admin_clear_all':
-        cursor.execute("DELETE FROM orders")
-        conn.commit()
-        conn.close()
-        bot.answer_callback_query(call.id, "🗑️ All Orders Data Cleared Successfully!", show_alert=True)
-        try:
-            bot.delete_message(call.message.chat.id, call.message.message_id)
-        except Exception:
-            pass
-        admin_dashboard(call.message)
-        return
-
-    if call.data == 'admin_download_db':
-        bot.answer_callback_query(call.id, "📥 Sending Database Backup...")
-        conn.close()
-        try:
-            with open('bot_database.db', 'rb') as db_file:
-                bot.send_document(ADMIN_ID, db_file, caption="📂 <b>DATABASE BACKUP FILE (.db)</b>", parse_mode='HTML')
-        except Exception as e:
-            bot.send_message(ADMIN_ID, f"❌ Error sending database: {e}")
-        return
-
-    bot.answer_callback_query(call.id)
     if call.data == 'admin_list_total':
         cursor.execute("SELECT id, username, plan_name, game_uid, status FROM orders ORDER BY id DESC LIMIT 10")
         title = "📊 𝐑𝐄𝐂𝐄𝐍𝐓 𝟏𝟎 𝐎𝐑𝐃𝐄𝐑𝐒"
-    else:
+    elif call.data == 'admin_list_pending':
         cursor.execute("SELECT id, username, plan_name, game_uid, status FROM orders WHERE status='Pending Verification' ORDER BY id DESC")
         title = "⏳ 𝐏𝐄𝐍𝐃𝐈𝐍𝐆 𝐎𝐑𝐃𝐄𝐑𝐒"
+    elif call.data == 'admin_list_approved':
+        cursor.execute("SELECT id, username, plan_name, game_uid, status FROM orders WHERE status='Approved' ORDER BY id DESC LIMIT 10")
+        title = "✅ 𝐀𝐏𝐏𝐑𝐎𝐕𝐄𝐃 𝐎𝐑𝐃𝐄𝐑𝐒"
+    elif call.data == 'admin_list_rejected':
+        cursor.execute("SELECT id, username, plan_name, game_uid, status FROM orders WHERE status='Rejected' ORDER BY id DESC LIMIT 10")
+        title = "❌ 𝐑𝐄𝐉𝐄𝐂𝐓𝐄𝐃 𝐎𝐑𝐃𝐄𝐑𝐒"
 
     rows = cursor.fetchall()
     conn.close()
@@ -266,7 +250,6 @@ def prompt_utr(call):
         parse_mode='HTML'
     )
     user_states[call.message.chat.id] = user_states.get(call.message.chat.id, {})
-    user_states[call.message.chat.id]['state'] = 'waiting_for_utr'
     user_states[call.message.chat.id]['enter_utr_msg_id'] = msg.message_id
 
 # Prompt for Payment Screenshot
@@ -288,14 +271,38 @@ def prompt_screenshot(call):
     user_states[call.message.chat.id]['state'] = 'waiting_for_screenshot'
     user_states[call.message.chat.id]['screenshot_msg_id'] = msg.message_id
 
+# Retry Payment Option Handler for Rejected Orders
+@bot.callback_query_handler(func=lambda call: call.data == 'retry_payment')
+def retry_payment_handler(call):
+    bot.answer_callback_query(call.id)
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    markup.add(
+        types.InlineKeyboardButton("🟢 ₹5 — 40 Likes", callback_data='plan_5_40'),
+        types.InlineKeyboardButton("🟡 ₹10 — 90 Likes", callback_data='plan_10_90'),
+        types.InlineKeyboardButton("🟡 ₹15 — 145 Likes", callback_data='plan_15_145'),
+        types.InlineKeyboardButton("🔵 ₹20 — 205 Likes", callback_data='plan_20_205'),
+        types.InlineKeyboardButton("🔵 ₹25 — 270 Likes", callback_data='plan_25_270'),
+        types.InlineKeyboardButton("🟣 ₹30 — 340 Likes", callback_data='plan_30_340'),
+        types.InlineKeyboardButton("🟣 ₹35 — 415 Likes", callback_data='plan_35_415'),
+        types.InlineKeyboardButton("🔥 ₹40 — 500 Likes", callback_data='plan_40_500'),
+        types.InlineKeyboardButton("🔥 ₹45 — 585 Likes", callback_data='plan_45_585'),
+        types.InlineKeyboardButton("🚀 ₹50 — 700 Likes (Best)", callback_data='plan_50_700')
+    )
+    bot.send_message(
+        call.message.chat.id,
+        "<blockquote>🔄 <b>RE-SUBMIT ORDER</b>\n\nNaya plan select karke apna sahi UTR ya Screenshot dobara bhejein:</blockquote>",
+        parse_mode='HTML',
+        reply_markup=markup
+    )
+
 # Handle Text Inputs & Photo Inputs (UTR, UID, Screenshot & Admin Custom Message sequence)
 @bot.message_handler(content_types=['text', 'photo'])
 def handle_messages(message):
     user_id = message.from_user.id
     state_data = user_states.get(user_id)
 
-    # Persistent Reply Keyboard Handlers
-    if message.text == "🚀 Start Bot" or message.text == "💎 Buy Likes & Pricing":
+    # Persistent Reply Keyboard Handler to ensure menu options always work
+    if message.text in ["🚀 Start Bot", "💎 Buy Likes & Pricing"]:
         send_welcome(message)
         return
     elif message.text == "ℹ️ Help & Trust Guide":
@@ -434,7 +441,7 @@ def handle_messages(message):
             "<blockquote>🔔 <b>𝑵𝑬𝑾 𝑶𝑹𝑫𝑬𝑹 𝑨𝑳𝑬𝑹𝑻</b>\n\n"
             f"• 𝑶𝒓𝒅𝒆𝒓 𝑰𝑫 : <code>{order_id}</code>\n"
             f"• 𝑪𝒖𝒔𝒕𝒐𝒎𝒆𝒓 : <code>{username}</code>\n"
-            f"• 𝑻𝒆𝒍𝒆𝒈𝒓𝒂𝒎 𝑰𝑫 : <code>{user_id}</code>\n"
+            f"• 𝑿𝒆𝒍𝒆𝒈𝒓𝒂𝒎 𝑰𝑫 : <code>{user_id}</code>\n"
             f"• 𝑷𝒍𝒂𝒏 : <code>{plan_selected}</code>\n"
             f"• 𝑮𝒂𝒎𝒆 𝑼𝑰𝑫 : <code>{game_uid}</code>\n"
             f"• 𝑷𝒂𝒚𝒎𝒆𝒏𝒕 : <code>{utr}</code>\n\n"
@@ -451,37 +458,8 @@ def handle_messages(message):
             bot.reply_to(message, "Kripya menu ka use karein ya /start dabayein.", reply_markup=get_main_menu(user_id))
 
 # Admin Approval / Rejection & Custom Message Trigger Handler
-@bot.callback_query_handler(func=lambda call: call.data.startswith('approve_') or call.data.startswith('reject_') or call.data.startswith('sendlikes_') or call.data.startswith('retry_order_'))
+@bot.callback_query_handler(func=lambda call: call.data.startswith('approve_') or call.data.startswith('reject_') or call.data.startswith('sendlikes_'))
 def handle_admin_verification(call):
-    if call.data.startswith('retry_order_'):
-        bot.answer_callback_query(call.id)
-        try:
-            bot.delete_message(call.message.chat.id, call.message.message_id)
-        except Exception:
-            pass
-        
-        markup = types.InlineKeyboardMarkup(row_width=2)
-        markup.add(
-            types.InlineKeyboardButton("🟢 ₹5 — 40 Likes", callback_data='plan_5_40'),
-            types.InlineKeyboardButton("🟡 ₹10 — 90 Likes", callback_data='plan_10_90'),
-            types.InlineKeyboardButton("🟡 ₹15 — 145 Likes", callback_data='plan_15_145'),
-            types.InlineKeyboardButton("🔵 ₹20 — 205 Likes", callback_data='plan_20_205'),
-            types.InlineKeyboardButton("🔵 ₹25 — 270 Likes", callback_data='plan_25_270'),
-            types.InlineKeyboardButton("🟣 ₹30 — 340 Likes", callback_data='plan_30_340'),
-            types.InlineKeyboardButton("🟣 ₹35 — 415 Likes", callback_data='plan_35_415'),
-            types.InlineKeyboardButton("🔥 ₹40 — 500 Likes", callback_data='plan_40_500'),
-            types.InlineKeyboardButton("🔥 ₹45 — 585 Likes", callback_data='plan_45_585'),
-            types.InlineKeyboardButton("🚀 ₹50 — 700 Likes (Best)", callback_data='plan_50_700')
-        )
-        text = (
-            "❤️ <b>RAWAT X LIKES BOT</b> ❤️\n\n"
-            "<blockquote>⚡ <b>RETRY ORDER</b>\n\n"
-            "Kripya apna naya plan select karein aur sahi UTR/Screenshot bhejein:\n\n"
-            "👇 Apna pasandida plan select karein:</blockquote>"
-        )
-        bot.send_message(call.message.chat.id, text, parse_mode='HTML', reply_markup=markup)
-        return
-
     if call.from_user.id != ADMIN_ID:
         bot.answer_callback_query(call.id, "❌ Aap admin nahi hain!", show_alert=True)
         return
@@ -538,7 +516,7 @@ def handle_admin_verification(call):
             pass
 
         user_states[ADMIN_ID] = {
-            'state': 'waiting_for_custom_name',
+            'state': 'waiting_for_custom_message',
             'target_user': target_user_id,
             'game_uid': game_uid
         }
@@ -572,11 +550,11 @@ def handle_admin_verification(call):
         bot.send_message(
             ADMIN_ID,
             f"<blockquote>❌ <b>𝑶𝑹𝑫𝑬𝑹 #{order_id}</b>\n\nStatus: Payment Invalid / Rejected</blockquote>",
-            parse_mode='HTML'
+            parse_print := 'HTML'
         )
 
-        retry_markup = types.InlineKeyboardMarkup()
-        retry_markup.add(types.InlineKeyboardButton("🔄 Dobara UTR / SS Bhejein (Retry)", callback_data=f"retry_order_{order_id}"))
+        user_retry_markup = types.InlineKeyboardMarkup()
+        user_retry_markup.add(types.InlineKeyboardButton("🔄 Dobara UTR / SS Bhejein (Retry)", callback_data='retry_payment'))
 
         bot.send_message(
             target_user_id,
@@ -584,7 +562,7 @@ def handle_admin_verification(call):
             "• Payment match nahi hua ya galat hai.\n"
             "• Kripya dobara sahi details ke sath order dalein.</blockquote>",
             parse_mode='HTML',
-            reply_markup=retry_markup
+            reply_markup=user_retry_markup
         )
 
 # Flask Server for Render Keep-Alive
