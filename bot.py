@@ -126,7 +126,7 @@ def show_admin_orders_list(call):
 
     if call.data == 'admin_list_total':
         cursor.execute("SELECT id, username, plan_name, game_uid, status FROM orders ORDER BY id DESC LIMIT 10")
-        title = "📊 𝐑𝐄𝐂𝐄𝐍𝐓 𝟏𝟎 𝐎𝐑𝐃𝐄𝐑𝐒"
+        title = "📊 𝐑𝐄𝐂𝐄𝐍𝐓 𝑻𝑶 𝐎𝐑𝐃𝐄𝐑𝐒"
     elif call.data == 'admin_list_pending':
         cursor.execute("SELECT id, username, plan_name, game_uid, status FROM orders WHERE status='Pending Verification' ORDER BY id DESC")
         title = "⏳ 𝐏𝐄𝐍𝐃𝐈𝐍𝐆 𝐎𝐑𝐃𝐄𝐑𝐒"
@@ -441,7 +441,7 @@ def handle_messages(message):
             "<blockquote>🔔 <b>𝑵𝑬𝑾 𝑶𝑹𝑫𝑬𝑹 𝑨𝑳𝑬𝑹𝑻</b>\n\n"
             f"• 𝑶𝒓𝒅𝒆𝒓 𝑰𝑫 : <code>{order_id}</code>\n"
             f"• 𝑪𝒖𝒔𝒕𝒐𝒎𝒆𝒓 : <code>{username}</code>\n"
-            f"• 𝑿𝒆𝒍𝒆𝒈𝒓𝒂𝒎 𝑰𝑫 : <code>{user_id}</code>\n"
+            f"• 𝑻𝒆𝒍𝒆𝒈𝒓𝒂𝒎 𝑰𝑫 : <code>{user_id}</code>\n"
             f"• 𝑷𝒍𝒂𝒏 : <code>{plan_selected}</code>\n"
             f"• 𝑮𝒂𝒎𝒆 𝑼𝑰𝑫 : <code>{game_uid}</code>\n"
             f"• 𝑷𝒂𝒚𝒎𝒆𝒏𝒕 : <code>{utr}</code>\n\n"
